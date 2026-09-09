@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SUHARNO 2 CONTENT STUDIO - Content Operating System & AI Prompt Studio</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              green: '#297C3F',
+              greenDark: '#1E5E2F',
+              greenLight: '#EAF5ED',
+              yellow: '#F4E918',
+              yellowHover: '#E0D610',
+              red: '#E90023',
+              redLight: '#FDECEE'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Vue 3 & SheetJS (XLSX) -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    [v-cloak] { display: none; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased font-sans" v-cloak id="app">
+
+  <!-- TOAST NOTIFICATION -->
+  <div v-if="toastMessage" class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-lg shadow-xl flex items-center gap-2 border border-slate-700 animate-bounce">
+    <i data-lucide="check" class="w-4 h-4 text-brand-yellow"></i>
+    <span>{{ toastMessage }}</span>
+  </div>
+
+  <!-- TOP HEADER -->
+  <header class="bg-brand-green text-white sticky top-0 z-40 shadow-md border-b-4 border-brand-yellow">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="bg-brand-yellow text-brand-greenDark font-black text-xl px-2.5 py-1 rounded shadow-sm">SH2</div>
+        <div>
+          <h1 class="font-extrabold text-base sm:text-lg tracking-tight leading-none">SUHARNO 2 CONTENT STUDIO</h1>
+          <p class="text-xs text-brand-yellow/90 font-medium">Content Operating System & AI Prompt Bank Generator</p>
+        </div>
+      </div>
+      
+      <!-- Top Action Controls -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button @click="openGeneratorModal" class="bg-brand-yellow text-slate-900 hover:bg-brand-yellowHover font-bold px-3 py-1.5 rounded-lg text-xs sm:text-sm transition-all shadow flex items-center gap-1.5">
+          <i data-lucide="sparkles" class="w-4 h-4 text-brand-greenDark"></i>
+          <span>Generate Calendar</span>
+        </button>
+        <button @click="exportToExcel" class="bg-white/10 hover:bg-white/20 text-white font-medium px-3 py-1.5 rounded-lg text-xs sm:text-sm transition-all flex items-center gap-1.5 border border-white/20">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4 text-brand-yellow"></i>
+          <span class="hidden sm:inline">Export Excel (With AI Prompts)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- SUB NAVIGATION TABS -->
+    <div class="bg-brand-greenDark/90 px-4 sm:px-6 lg:px-8 border-t border-brand-green">
+      <nav class="max-w-7xl mx-auto flex space-x-1 sm:space-x-3 overflow-x-auto py-2">
+        <button v-for="tab in tabs" :key="tab.id" @click="currentTab = tab.id"
+                :class="currentTab === tab.id ? 'bg-brand-green text-white border-brand-yellow' : 'text-slate-200 hover:bg-white/10 hover:text-white border-transparent'"
+                class="px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold flex items-center gap-2 border-b-2 transition-all whitespace-nowrap">
+          <i :data-lucide="tab.icon" class="w-4 h-4"></i>
+          {{ tab.name }}
+          <span v-if="tab.badge" class="bg-brand-red text-[10px] text-white px-1.5 py-0.2 rounded-full font-mono">{{ tab.badge }}</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ============================================== -->
+    <!-- 1. DASHBOARD TAB -->
+    <!-- ============================================== -->
+    <section v-if="currentTab === 'dashboard'" class="space-y-6">
+      
+      <!-- WARNING BANNER IF SKEWED -->
+      <div v-if="distributionWarning" class="p-4 bg-brand-yellow/20 border-l-4 border-brand-yellow rounded-r-lg flex items-start gap-3">
+        <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"></i>
+        <div>
+          <h4 class="font-bold text-amber-900 text-sm">Peringatan Distribusi Konten</h4>
+          <p class="text-xs text-amber-800">{{ distributionWarning }}</p>
+        </div>
+      </div>
+
+      <!-- KPI METRIC CARDS -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Konten</span>
+          <p class="text-2xl font-black text-slate-800 mt-1">{{ contents.length }}</p>
+          <span class="text-[11px] text-slate-400">Periode aktif</span>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Ready / Siap</span>
+          <p class="text-2xl font-black text-brand-green mt-1">{{ countStatus('READY') }}</p>
+          <span class="text-[11px] text-emerald-600 font-medium">Validasi Lolos</span>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Needs Asset</span>
+          <p class="text-2xl font-black text-amber-500 mt-1">{{ countStatus('NEEDS_ASSET') }}</p>
+          <span class="text-[11px] text-amber-700">Perlu foto/video</span>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Needs Review</span>
+          <p class="text-2xl font-black text-brand-red mt-1">{{ countStatus('NEEDS_REVIEW') }}</p>
+          <span class="text-[11px] text-rose-600">Perlu koreksi</span>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Posted</span>
+          <p class="text-2xl font-black text-blue-600 mt-1">{{ countStatus('POSTED') }}</p>
+          <span class="text-[11px] text-blue-500">Tayang di Feed</span>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Avg Score</span>
+          <p class="text-2xl font-black text-slate-800 mt-1">{{ averageScore }}/100</p>
+          <span class="text-[11px] font-medium" :class="averageScore >= 80 ? 'text-emerald-600' : 'text-amber-600'">
+            {{ averageScore >= 80 ? 'Sangat Optimal' : 'Cukup Baik' }}
+          </span>
+        </div>
+      </div>
+
+      <!-- MAIN SPLIT: DISTRIBUTION & FORMAT BREAKDOWN -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Pillar Distribution -->
+        <div class="lg:col-span-2 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-slate-800 flex items-center gap-2 text-base">
+              <i data-lucide="pie-chart" class="w-4 h-4 text-brand-green"></i>
+              Distribusi Content Pillar
+            </h3>
+            <span class="text-xs text-slate-400">Target Ideal: Food 35%, Eng 15%, Trust 15%, Comm 15%</span>
+          </div>
+
+          <div class="space-y-3">
+            <div v-for="(pct, pillar) in pillarDistribution" :key="pillar" class="space-y-1">
+              <div class="flex justify-between text-xs font-semibold">
+                <span class="text-slate-700">{{ getPillarLabel(pillar) }}</span>
+                <span class="text-slate-900 font-mono">{{ pct }}% ({{ countPillar(pillar) }} post)</span>
+              </div>
+              <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                <div class="h-2.5 rounded-full transition-all duration-500"
+                     :style="{ width: pct + '%' }"
+                     :class="getPillarColorClass(pillar)"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Format & Health -->
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2 text-base">
+              <i data-lucide="layers" class="w-4 h-4 text-brand-green"></i>
+              Format Konten Feed
+            </h3>
+            <div class="space-y-4">
+              <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
+                <div>
+                  <div class="font-bold text-sm text-slate-800">Single Photo</div>
+                  <div class="text-[11px] text-slate-500">Foto Hero / Menu / Ambience (4:5)</div>
+                </div>
+                <span class="text-lg font-black text-brand-green">{{ countFormat('Single Photo') }}</span>
+              </div>
+              <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
+                <div>
+                  <div class="font-bold text-sm text-slate-800">Carousel Slide</div>
+                  <div class="text-[11px] text-slate-500">Edukasi / Menu / Cerita (6 Slides)</div>
+                </div>
+                <span class="text-lg font-black text-brand-green">{{ countFormat('Carousel') }}</span>
+              </div>
+              <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
+                <div>
+                  <div class="font-bold text-sm text-slate-800">Promotional Graphic</div>
+                  <div class="text-[11px] text-slate-500">Spesial Promo Terverifikasi</div>
+                </div>
+                <span class="text-lg font-black text-brand-red">{{ countFormat('Promotional Graphic') }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 pt-4 border-t border-slate-100">
+            <button @click="currentTab = 'calendar'" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs flex items-center justify-center gap-2 transition">
+              <span>Buka Content Calendar Lengkap</span>
+              <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RECENT CONTENT PREVIEW -->
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-slate-800 flex items-center gap-2 text-base">
+            <i data-lucide="clock" class="w-4 h-4 text-brand-green"></i>
+            7 Konten Terdekat Mendatang (Dilengkapi AI Prompt Visual)
+          </h3>
+          <span class="text-xs text-slate-400">Jadwal posting terdekat</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
+                <th class="p-2.5 font-semibold">TANGGAL</th>
+                <th class="p-2.5 font-semibold">FORMAT</th>
+                <th class="p-2.5 font-semibold">PILLAR</th>
+                <th class="p-2.5 font-semibold">TOPIK / MENU</th>
+                <th class="p-2.5 font-semibold">HOOK UTAMA</th>
+                <th class="p-2.5 font-semibold">STATUS ASSET</th>
+                <th class="p-2.5 font-semibold">SCORE</th>
+                <th class="p-2.5 font-semibold text-center">AKSI</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="item in contents.slice(0, 7)" :key="item.id" class="hover:bg-slate-50/80 transition">
+                <td class="p-2.5 font-mono font-medium text-slate-700 whitespace-nowrap">{{ formatDate(item.date) }}</td>
+                <td class="p-2.5 whitespace-nowrap">
+                  <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700">{{ item.format }}</span>
+                </td>
+                <td class="p-2.5 whitespace-nowrap">
+                  <span :class="getPillarBadgeClass(item.pillar)" class="px-2 py-0.5 rounded text-[11px] font-medium">
+                    {{ item.pillar }}
+                  </span>
+                </td>
+                <td class="p-2.5 font-semibold text-slate-800">{{ item.topic }}</td>
+                <td class="p-2.5 text-slate-600 truncate max-w-xs font-medium italic">"{{ item.hook }}"</td>
+                <td class="p-2.5 whitespace-nowrap">
+                  <span v-if="item.matchedAsset" class="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[11px] font-medium">
+                    <i data-lucide="check-circle" class="w-3 h-3"></i> Ready: {{ item.matchedAsset }}
+                  </span>
+                  <span v-else class="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[11px] font-medium">
+                    <i data-lucide="alert-circle" class="w-3 h-3"></i> Asset Needed
+                  </span>
+                </td>
+                <td class="p-2.5 font-mono font-bold" :class="item.score >= 80 ? 'text-brand-green' : 'text-amber-600'">{{ item.score }}/100</td>
+                <td class="p-2.5 text-center whitespace-nowrap">
+                  <button @click="openDetailModal(item)" class="text-brand-green hover:underline font-semibold">Detail & Prompts</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- 2. CONTENT CALENDAR TAB -->
+    <!-- ============================================== -->
+    <section v-if="currentTab === 'calendar'" class="space-y-4">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200">
+        <div>
+          <h2 class="text-lg font-bold text-slate-800">Kalender Perencanaan Instagram Feed</h2>
+          <p class="text-xs text-slate-500">Klik kartu mana saja untuk mengakses Brief, AI Prompt Image & Video, serta Copywriting Caption.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button @click="openGeneratorModal" class="bg-brand-green hover:bg-brand-greenDark text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Regenerate Full Calendar
+          </button>
+        </div>
+      </div>
+
+      <!-- CALENDAR GRID VIEW -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        <div v-for="item in contents" :key="item.id" 
+             @click="openDetailModal(item)"
+             class="bg-white border rounded-xl p-3.5 shadow-sm hover:shadow-md cursor-pointer transition-all border-l-4 flex flex-col justify-between"
+             :class="getStatusBorderColor(item.status)">
+          <div>
+            <div class="flex items-center justify-between text-xs mb-1.5">
+              <span class="font-mono font-bold text-slate-600">{{ formatDate(item.date) }}</span>
+              <span class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                    :class="getStatusBadgeClass(item.status)">
+                {{ item.status.replace('_', ' ') }}
+              </span>
+            </div>
+
+            <div class="text-[11px] font-semibold text-brand-green uppercase tracking-wide">{{ item.pillar }}</div>
+            <h4 class="font-bold text-sm text-slate-800 mt-0.5 line-clamp-1">{{ item.topic }}</h4>
+            <p class="text-xs text-slate-500 italic mt-1 line-clamp-2">"{{ item.hook }}"</p>
+          </div>
+
+          <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+            <span class="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-medium">{{ item.format }}</span>
+            <div class="flex items-center gap-1.5">
+              <span class="text-[10px] text-brand-green font-bold flex items-center gap-0.5" title="AI Prompts Ready">
+                <i data-lucide="sparkles" class="w-3 h-3 text-brand-yellow"></i> AI
+              </span>
+              <span class="font-mono font-bold" :class="item.score >= 80 ? 'text-emerald-700' : 'text-amber-700'">
+                {{ item.score }} pts
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- 3. PRODUCTION BOARD (KANBAN) -->
+    <!-- ============================================== -->
+    <section v-if="currentTab === 'production'" class="space-y-4">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <h2 class="text-lg font-bold text-slate-800">Production Workflow Board</h2>
+          <p class="text-xs text-slate-500">Pantau proses konten dari tahap Ide, Aset, Shooting hingga Siap Posting.</p>
+        </div>
+        <button @click="showBatchModal = true" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+          <i data-lucide="camera" class="w-3.5 h-3.5 text-brand-yellow"></i>
+          <span>Shot List & Batch Shooting</span>
+        </button>
+      </div>
+
+      <!-- KANBAN COLUMNS -->
+      <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-3 overflow-x-auto pb-4">
+        <div v-for="col in kanbanColumns" :key="col.id" class="bg-slate-100 p-2.5 rounded-xl min-w-[210px] flex flex-col max-h-[75vh]">
+          <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200">
+            <span class="text-xs font-bold text-slate-700">{{ col.label }}</span>
+            <span class="bg-white text-slate-600 font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full border">
+              {{ getContentsByStage(col.id).length }}
+            </span>
+          </div>
+
+          <div class="space-y-2 overflow-y-auto flex-1 pr-1">
+            <div v-for="card in getContentsByStage(col.id)" :key="card.id" 
+                 class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm hover:border-brand-green cursor-pointer text-xs transition"
+                 @click="openDetailModal(card)">
+              <div class="text-[10px] text-slate-400 font-mono">{{ formatDate(card.date) }}</div>
+              <h5 class="font-bold text-slate-800 text-xs mt-0.5 line-clamp-1">{{ card.topic }}</h5>
+              <div class="text-[11px] text-slate-500 mt-1 line-clamp-1">{{ card.format }}</div>
+              
+              <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between">
+                <select @click.stop v-model="card.stage" class="bg-slate-50 border text-[10px] rounded px-1 py-0.5 text-slate-600 font-medium">
+                  <option v-for="c in kanbanColumns" :key="c.id" :value="c.id">{{ c.label }}</option>
+                </select>
+              </div>
+            </div>
+            <div v-if="getContentsByStage(col.id).length === 0" class="text-center py-6 text-slate-400 text-[11px] italic">
+              Kosong
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- 4. CONTENT DATABASE (MENU & PROMO) -->
+    <!-- ============================================== -->
+    <section v-if="currentTab === 'database'" class="space-y-6">
+      
+      <!-- SUB HEADER -->
+      <div class="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200">
+        <div>
+          <h2 class="text-lg font-bold text-slate-800">Database Menu & Promo Aktif</h2>
+          <p class="text-xs text-slate-500">Generator hanya menggunakan data asli tanpa mengarang harga atau bahan baru.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button @click="seedDefaultMenu" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold">
+            Reset Data Default
+          </button>
+        </div>
+      </div>
+
+      <!-- MENU TABLE -->
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+            <i data-lucide="utensils" class="w-4 h-4 text-brand-green"></i>
+            Daftar Menu Ikan & Olahan
+          </h3>
+          <span class="text-xs text-slate-400">{{ menus.length }} Menu Terdaftar</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
+                <th class="p-2.5 font-semibold">NAMA MENU</th>
+                <th class="p-2.5 font-semibold">JENIS IKAN</th>
+                <th class="p-2.5 font-semibold">METODE MASAK</th>
+                <th class="p-2.5 font-semibold">PILIHAN BUMBU</th>
+                <th class="p-2.5 font-semibold">DESKRIPSI (FAKTUAL)</th>
+                <th class="p-2.5 font-semibold">STATUS</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="menu in menus" :key="menu.menu_id">
+                <td class="p-2.5 font-bold text-slate-800">{{ menu.menu_name }}</td>
+                <td class="p-2.5"><span class="bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded font-medium">{{ menu.fish_type }}</span></td>
+                <td class="p-2.5">{{ menu.cooking_method }}</td>
+                <td class="p-2.5 text-slate-600 font-medium">{{ menu.sauce }}</td>
+                <td class="p-2.5 text-slate-500 max-w-sm">{{ menu.description || '[Data Tidak Diisi]' }}</td>
+                <td class="p-2.5">
+                  <span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold">TERSEDIA</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PROMO DATABASE -->
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+            <i data-lucide="tag" class="w-4 h-4 text-brand-red"></i>
+            Database Promosi (Strict Validation)
+          </h3>
+          <span class="text-xs text-slate-400">Hanya promo aktif dan dalam periode valid yang dapat dipakai generator</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
+                <th class="p-2.5 font-semibold">NAMA PROMO</th>
+                <th class="p-2.5 font-semibold">BENEFIT</th>
+                <th class="p-2.5 font-semibold">PERIODE VALID</th>
+                <th class="p-2.5 font-semibold">SYARAT & KETENTUAN</th>
+                <th class="p-2.5 font-semibold">STATUS AKTIF</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="promo in promotions" :key="promo.promotion_id">
+                <td class="p-2.5 font-bold text-slate-800">{{ promo.name }}</td>
+                <td class="p-2.5 text-brand-red font-semibold">{{ promo.discount }}</td>
+                <td class="p-2.5 font-mono text-slate-600">{{ promo.start_date }} s/d {{ promo.end_date }}</td>
+                <td class="p-2.5 text-slate-500 max-w-xs">{{ promo.terms }}</td>
+                <td class="p-2.5">
+                  <span :class="promo.active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'" 
+                        class="px-2 py-0.5 rounded text-[10px] font-bold">
+                    {{ promo.active ? 'ACTIVE' : 'EXPIRED' }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- 5. ASSET LIBRARY -->
+    <!-- ============================================== -->
+    <section v-if="currentTab === 'assets'" class="space-y-4">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <h2 class="text-lg font-bold text-slate-800">Asset Library & Matching Bank</h2>
+          <p class="text-xs text-slate-500">File aset foto & video asli restoran. Sistem mencocokkan aset ini secara otomatis ke jadwal posting.</p>
+        </div>
+        <button @click="showAddAssetModal = true" class="bg-brand-green hover:bg-brand-greenDark text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i> Tambah Aset Baru
+        </button>
+      </div>
+
+      <!-- ASSET GRID -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div v-for="asset in assets" :key="asset.asset_id" class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:shadow transition flex flex-col justify-between">
+          <div>
+            <div class="h-32 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 border border-dashed border-slate-200 mb-2">
+              <div class="text-center p-2">
+                <i data-lucide="image" class="w-8 h-8 mx-auto text-slate-300 mb-1"></i>
+                <span class="text-[11px] font-mono text-slate-600 block truncate">{{ asset.file_name }}</span>
+                <span class="text-[9px] bg-slate-200 px-1.5 py-0.5 rounded text-slate-700 font-semibold">{{ asset.type }}</span>
+              </div>
+            </div>
+            <div class="text-xs font-bold text-slate-800 truncate">{{ asset.menu }}</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">Kategori: <span class="font-medium text-slate-700">{{ asset.category }}</span></div>
+            <div class="flex flex-wrap gap-1 mt-1.5">
+              <span v-for="tag in asset.tags" :key="tag" class="bg-slate-100 text-slate-600 text-[10px] px-1.5 py-0.2 rounded font-mono">
+                #{{ tag }}
+              </span>
+            </div>
+          </div>
+
+          <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+            <span>Terpakai: <strong class="text-slate-800">{{ asset.used_count }}x</strong></span>
+            <span class="text-[10px] text-emerald-600 font-semibold">Tersedia</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- 6. ANALYTICS & MONTHLY REVIEW -->
+    <!-- ============================================== -->
+    <section v-if="currentTab === 'analytics'" class="space-y-6">
+      <div class="bg-white p-5 rounded-xl border border-slate-200">
+        <h2 class="text-lg font-bold text-slate-800">Monthly KPI & Performance Review</h2>
+        <p class="text-xs text-slate-500">Analisis metrik performa konten untuk mengoptimalkan output di bulan mendatang.</p>
+      </div>
+
+      <!-- AI RECOMMENDATION BOX -->
+      <div class="bg-gradient-to-r from-brand-greenLight to-white p-5 rounded-xl border border-brand-green/30 flex items-start gap-4">
+        <div class="p-3 bg-brand-green text-white rounded-xl shadow-sm shrink-0">
+          <i data-lucide="bot" class="w-6 h-6 text-brand-yellow"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-brand-greenDark text-sm">Rekomendasi Strategis AI Content Engine</h3>
+          <p class="text-xs text-slate-700 mt-1 leading-relaxed">
+            "Konten bertema <strong>Food/Appetite (Gurami Bakar & Nila Goreng Sambal)</strong> memiliki estimasi daya tarik 32% lebih tinggi. Carousel rekomendasi menu keluarga terbukti paling efektif mendorong simpanan (saves). Gunakan prompt AI visual yang telah disediakan untuk membuat aset visual realistis tanpa filter berlebihan."
+          </p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
+            <i data-lucide="trending-up" class="w-4 h-4 text-emerald-600"></i>
+            Top 5 Prediksi Konten Terbaik
+          </h3>
+          <div class="space-y-3">
+            <div v-for="(item, idx) in topContents" :key="item.id" class="p-3 bg-slate-50 rounded-lg flex items-center justify-between text-xs">
+              <div class="flex items-center gap-2.5">
+                <span class="font-black text-brand-green font-mono text-sm">#{{ idx + 1 }}</span>
+                <div>
+                  <div class="font-bold text-slate-800">{{ item.topic }}</div>
+                  <div class="text-[11px] text-slate-500 italic">"{{ item.hook }}"</div>
+                </div>
+              </div>
+              <span class="font-mono font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">{{ item.score }} pts</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
+            <i data-lucide="award" class="w-4 h-4 text-brand-yellowHover"></i>
+            Metrik Efektivitas Pilar
+          </h3>
+          <div class="space-y-3 text-xs">
+            <div class="flex justify-between items-center p-2.5 border-b">
+              <span class="font-semibold text-slate-700">Food / Appetite</span>
+              <span class="font-bold text-slate-900">Skor Est: 92/100 (Sangat Tinggi)</span>
+            </div>
+            <div class="flex justify-between items-center p-2.5 border-b">
+              <span class="font-semibold text-slate-700">Engagement & Interaksi</span>
+              <span class="font-bold text-slate-900">Skor Est: 86/100 (Tinggi)</span>
+            </div>
+            <div class="flex justify-between items-center p-2.5 border-b">
+              <span class="font-semibold text-slate-700">Trust (Dapur & Kebersihan)</span>
+              <span class="font-bold text-slate-900">Skor Est: 83/100 (Stabil)</span>
+            </div>
+            <div class="flex justify-between items-center p-2.5 border-b">
+              <span class="font-semibold text-slate-700">Community & Family</span>
+              <span class="font-bold text-slate-900">Skor Est: 88/100 (Tinggi saat weekend)</span>
+            </div>
+            <div class="flex justify-between items-center p-2.5">
+              <span class="font-semibold text-slate-700">Brand Story & Value</span>
+              <span class="font-bold text-slate-900">Skor Est: 78/100 (Cukup)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- 7. BRAND RULES & SETTINGS TAB -->
+    <!-- ============================================== -->
+    <section v-if="currentTab === 'settings'" class="max-w-4xl mx-auto space-y-6">
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <h2 class="text-lg font-bold text-slate-800 border-b pb-3">Brand Identity & Strict AI Rules</h2>
+        
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div class="p-3 rounded-lg border text-center" style="background-color: #297C3F; color: white;">
+            <div class="text-xs font-bold uppercase">Primary Green</div>
+            <div class="font-mono text-xs mt-1">#297C3F</div>
+          </div>
+          <div class="p-3 rounded-lg border text-center" style="background-color: #F4E918; color: #1e293b;">
+            <div class="text-xs font-bold uppercase">Accent Yellow</div>
+            <div class="font-mono text-xs mt-1">#F4E918</div>
+          </div>
+          <div class="p-3 rounded-lg border text-center" style="background-color: #E90023; color: white;">
+            <div class="text-xs font-bold uppercase">Warning Red</div>
+            <div class="font-mono text-xs mt-1">#E90023</div>
+          </div>
+          <div class="p-3 rounded-lg border text-center bg-white text-slate-800">
+            <div class="text-xs font-bold uppercase">Base White</div>
+            <div class="font-mono text-xs mt-1">#FFFFFF</div>
+          </div>
+        </div>
+
+        <div class="mt-4 p-4 bg-amber-50 rounded-lg border border-amber-200 text-xs text-amber-900 space-y-1.5">
+          <div class="font-bold flex items-center gap-1.5">
+            <i data-lucide="shield-alert" class="w-4 h-4 text-amber-700"></i>
+            ATURAN VALIDASI KEAMANAN DATA & AI PROMPT ACCURACY:
+          </div>
+          <ul class="list-disc pl-5 space-y-1">
+            <li>Prompt AI Visual dikunci agar menghasilkan citra realistis makanan Indonesia, pencahayaan alami tanpa hiper-saturasi (*no plastic look, no oversaturation*).</li>
+            <li>Dilarang mengarang harga jika kosong di database.</li>
+            <li>Dilarang membuat klaim superlatif ("Terenak se-Indonesia", "Nomor 1").</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================================== -->
+  <!-- MODAL: GENERATOR MODAL -->
+  <!-- ============================================== -->
+  <div v-if="showGeneratorModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-5 border border-slate-100 my-8">
+      <div class="flex items-center justify-between border-b pb-3">
+        <div>
+          <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+            <i data-lucide="wand-2" class="w-5 h-5 text-brand-green"></i>
+            Content Planning Generator
+          </h3>
+          <p class="text-xs text-slate-500">Kalkulasi Smart Mix & Auto AI Visual Prompt Engine</p>
+        </div>
+        <button @click="showGeneratorModal = false" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- PROGRESS VIEW IF GENERATING -->
+      <div v-if="isGenerating" class="py-8 space-y-4">
+        <div class="text-center">
+          <div class="inline-block animate-spin text-brand-green mb-3">
+            <i data-lucide="refresh-cw" class="w-8 h-8"></i>
+          </div>
+          <h4 class="font-bold text-slate-800 text-sm">{{ generationStepText }}</h4>
+          <p class="text-xs text-slate-500">Menerapkan Anti-Repetition & Image/Video Prompt Generator...</p>
+        </div>
+        <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+          <div class="bg-brand-green h-3 transition-all duration-300" :style="{ width: generationProgress + '%' }"></div>
+        </div>
+      </div>
+
+      <!-- FORM VIEW -->
+      <form v-else @submit.prevent="startGeneration" class="space-y-4 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Start Date</label>
+            <input type="date" v-model="genForm.startDate" class="w-full border rounded-lg p-2 font-mono text-xs focus:ring-2 focus:ring-brand-green" required />
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">End Date</label>
+            <input type="date" v-model="genForm.endDate" class="w-full border rounded-lg p-2 font-mono text-xs focus:ring-2 focus:ring-brand-green" required />
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Total Konten: <span class="font-bold text-brand-green font-mono text-sm">{{ genForm.totalPosts }}</span></label>
+          <input type="range" min="7" max="31" v-model.number="genForm.totalPosts" @input="syncFormatCounts" class="w-full accent-brand-green" />
+        </div>
+
+        <div class="p-3 bg-slate-50 rounded-xl border space-y-2">
+          <div class="flex justify-between items-center font-bold text-slate-700">
+            <span>Distribusi Format Feed</span>
+            <span :class="formatSum === genForm.totalPosts ? 'text-brand-green' : 'text-brand-red'" class="font-mono">
+              Total: {{ formatSum }} / {{ genForm.totalPosts }}
+            </span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="block text-[11px] text-slate-500 mb-0.5">Single Photo</label>
+              <input type="number" min="0" v-model.number="genForm.singlePhotoCount" class="w-full border rounded p-1.5 font-mono text-center" />
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-500 mb-0.5">Carousel</label>
+              <input type="number" min="0" v-model.number="genForm.carouselCount" class="w-full border rounded p-1.5 font-mono text-center" />
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-500 mb-0.5">Promo Graphic</label>
+              <input type="number" min="0" v-model.number="genForm.promoCount" class="w-full border rounded p-1.5 font-mono text-center" />
+            </div>
+          </div>
+          <div v-if="formatSum !== genForm.totalPosts" class="text-brand-red font-semibold text-[11px]">
+            ⚠️ Error: Jumlah ketiga format harus persis sama dengan total konten ({{ genForm.totalPosts }}).
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Target Marketing Objective</label>
+          <div class="grid grid-cols-2 gap-1.5">
+            <label v-for="obj in availableObjectives" :key="obj" class="flex items-center gap-2 p-1.5 border rounded-lg hover:bg-slate-50 cursor-pointer">
+              <input type="checkbox" :value="obj" v-model="genForm.objectives" class="accent-brand-green" />
+              <span class="text-slate-700 font-medium">{{ obj }}</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="pt-3 border-t flex justify-end gap-2">
+          <button type="button" @click="showGeneratorModal = false" class="px-4 py-2 border rounded-lg text-slate-600 font-semibold hover:bg-slate-100">Batal</button>
+          <button type="submit" :disabled="formatSum !== genForm.totalPosts" 
+                  class="px-5 py-2 bg-brand-green hover:bg-brand-greenDark disabled:bg-slate-300 text-white font-bold rounded-lg flex items-center gap-1.5 shadow">
+            <i data-lucide="sparkles" class="w-4 h-4 text-brand-yellow"></i>
+            <span>Mulai Generate Konten</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- MODAL: CONTENT DETAIL & AI PROMPT VIEWER -->
+  <!-- ============================================== -->
+  <div v-if="selectedContent" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-5 border border-slate-100 my-8">
+      
+      <!-- HEADER -->
+      <div class="flex items-start justify-between border-b pb-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-mono text-xs font-bold text-slate-500">{{ selectedContent.id }}</span>
+            <span class="text-xs px-2 py-0.5 rounded font-bold uppercase" :class="getStatusBadgeClass(selectedContent.status)">
+              {{ selectedContent.status }}
+            </span>
+            <span class="font-mono font-bold text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+              Versi: {{ selectedContent.activeVersion }}
+            </span>
+          </div>
+          <h3 class="text-base font-extrabold text-slate-800 mt-1">{{ selectedContent.topic }}</h3>
+          <p class="text-xs text-slate-500 font-mono">{{ formatDate(selectedContent.date) }} • {{ selectedContent.format }} • {{ selectedContent.pillar }}</p>
+        </div>
+        <button @click="selectedContent = null" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- MODAL TABS (BRIEF & PROMPTS) -->
+      <div class="flex border-b text-xs font-bold space-x-4">
+        <button @click="detailTab = 'prompts'" :class="detailTab === 'prompts' ? 'border-b-2 border-brand-green text-brand-green' : 'text-slate-500'" class="pb-2 flex items-center gap-1.5">
+          <i data-lucide="sparkles" class="w-4 h-4 text-brand-yellow"></i> Auto AI Prompts (Image & Video)
+        </button>
+        <button @click="detailTab = 'brief'" :class="detailTab === 'brief' ? 'border-b-2 border-brand-green text-brand-green' : 'text-slate-500'" class="pb-2 flex items-center gap-1.5">
+          <i data-lucide="file-text" class="w-4 h-4"></i> Copywriting & Production Brief
+        </button>
+      </div>
+
+      <!-- TAB 1: AI PROMPTS GENERATOR -->
+      <div v-if="detailTab === 'prompts'" class="space-y-4 text-xs">
+        
+        <!-- IMAGE PROMPT BOX -->
+        <div class="p-4 bg-slate-900 text-slate-200 rounded-xl space-y-2 relative border border-slate-800">
+          <div class="flex items-center justify-between">
+            <span class="text-brand-yellow font-bold flex items-center gap-1.5 uppercase text-[11px] tracking-wide">
+              <i data-lucide="image" class="w-4 h-4"></i>
+              AI Image Prompt (Midjourney v6.1 / FLUX.1 / SD)
+            </span>
+            <button @click="copyToClipboard(currentVersionData.imagePrompt, 'Prompt Gambar berhasil disalin!')" 
+                    class="bg-brand-green hover:bg-brand-greenDark text-white px-2.5 py-1 rounded text-[11px] font-semibold flex items-center gap-1 shadow">
+              <i data-lucide="copy" class="w-3 h-3"></i> Copy Prompt
+            </button>
+          </div>
+          <p class="font-mono text-[11px] leading-relaxed bg-black/40 p-3 rounded-lg border border-slate-800 select-all text-emerald-300">
+            {{ currentVersionData.imagePrompt }}
+          </p>
+          <div class="flex justify-between items-center text-[10px] text-slate-400">
+            <span>Aspect Ratio: <strong>4:5 (Portrait Feed)</strong></span>
+            <span>Style: <strong>Photorealistic Indonesian Food (No Filter Bias)</strong></span>
+          </div>
+        </div>
+
+        <!-- VIDEO PROMPT BOX -->
+        <div class="p-4 bg-slate-900 text-slate-200 rounded-xl space-y-2 relative border border-slate-800">
+          <div class="flex items-center justify-between">
+            <span class="text-brand-yellow font-bold flex items-center gap-1.5 uppercase text-[11px] tracking-wide">
+              <i data-lucide="video" class="w-4 h-4"></i>
+              AI Video Prompt (Runway Gen-3 / Luma Dream Machine / Sora)
+            </span>
+            <button @click="copyToClipboard(currentVersionData.videoPrompt, 'Prompt Video berhasil disalin!')" 
+                    class="bg-brand-green hover:bg-brand-greenDark text-white px-2.5 py-1 rounded text-[11px] font-semibold flex items-center gap-1 shadow">
+              <i data-lucide="copy" class="w-3 h-3"></i> Copy Prompt
+            </button>
+          </div>
+          <p class="font-mono text-[11px] leading-relaxed bg-black/40 p-3 rounded-lg border border-slate-800 select-all text-amber-200">
+            {{ currentVersionData.videoPrompt }}
+          </p>
+          <div class="flex justify-between items-center text-[10px] text-slate-400">
+            <span>Motion: <strong>Slow 45° Dolly-in with rising steam</strong></span>
+            <span>Focus: <strong>Rack focus to sambal & fish glaze</strong></span>
+          </div>
+        </div>
+
+        <!-- NEGATIVE PROMPT RECOMMENDATION -->
+        <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-900 text-[11px] space-y-1">
+          <div class="font-bold flex items-center gap-1.5">
+            <i data-lucide="shield-x" class="w-3.5 h-3.5 text-rose-600"></i> Negative Prompt (Wajib Disertakan):
+          </div>
+          <p class="font-mono text-[10px] select-all bg-white p-2 rounded border border-rose-200 text-rose-800">
+            oversaturated, fake plastic sheen, cartoon, 3d render, illustration, dark gloom, neon colors, raw fish, artificial lighting, messy table, distorted anatomy
+          </p>
+        </div>
+
+      </div>
+
+      <!-- TAB 2: COPYWRITING & PRODUCTION BRIEF -->
+      <div v-else class="space-y-4 text-xs">
+        
+        <!-- HOOK & SCORE -->
+        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-slate-700 uppercase tracking-wide text-[10px]">Headline / Hook:</span>
+            <button @click="regeneratePart('hook')" class="text-brand-green hover:underline font-semibold text-[11px] flex items-center gap-1">
+              <i data-lucide="rotate-cw" class="w-3 h-3"></i> Regenerate Hook
+            </button>
+          </div>
+          <p class="text-sm font-extrabold text-slate-900 italic leading-snug">"{{ currentVersionData.hook }}"</p>
+        </div>
+
+        <!-- VISUAL BRIEF -->
+        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-slate-700 uppercase tracking-wide text-[10px]">Visual Production Brief:</span>
+            <button @click="regeneratePart('visual')" class="text-brand-green hover:underline font-semibold text-[11px] flex items-center gap-1">
+              <i data-lucide="rotate-cw" class="w-3 h-3"></i> Regenerate Visual
+            </button>
+          </div>
+          <div class="grid grid-cols-2 gap-2 mt-2 text-[11px]">
+            <div><strong>Subjek:</strong> {{ currentVersionData.visualBrief.subject }}</div>
+            <div><strong>Ratio:</strong> {{ currentVersionData.visualBrief.ratio }}</div>
+            <div><strong>Angle Kamera:</strong> {{ currentVersionData.visualBrief.angle }}</div>
+            <div><strong>Pencahayaan:</strong> {{ currentVersionData.visualBrief.lighting }}</div>
+            <div class="col-span-2"><strong>Fokus Visual:</strong> {{ currentVersionData.visualBrief.focus }}</div>
+          </div>
+        </div>
+
+        <!-- CAROUSEL SLIDES (IF CAROUSEL) -->
+        <div v-if="selectedContent.format === 'Carousel'" class="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+          <span class="font-bold text-slate-700 uppercase tracking-wide text-[10px] block mb-2">Struktur Slide Carousel (6 Slides):</span>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+            <div v-for="(slide, sIdx) in currentVersionData.carouselSlides" :key="sIdx" class="p-2 bg-white rounded border border-slate-200">
+              <span class="font-bold text-brand-green font-mono">Slide {{ sIdx + 1 }}:</span> {{ slide }}
+            </div>
+          </div>
+        </div>
+
+        <!-- CAPTION -->
+        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-slate-700 uppercase tracking-wide text-[10px]">Caption Instagram Feed:</span>
+            <button @click="regeneratePart('caption')" class="text-brand-green hover:underline font-semibold text-[11px] flex items-center gap-1">
+              <i data-lucide="rotate-cw" class="w-3 h-3"></i> Regenerate Caption
+            </button>
+          </div>
+          <p class="whitespace-pre-line text-slate-700 text-xs font-normal leading-relaxed bg-white p-3 rounded border border-slate-100">
+            {{ currentVersionData.caption }}
+          </p>
+        </div>
+
+        <!-- CALL TO ACTION (CTA) -->
+        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+          <div>
+            <span class="text-[10px] font-bold text-slate-500 uppercase block">Call to Action (CTA):</span>
+            <span class="font-bold text-slate-800 text-xs">"{{ currentVersionData.cta }}"</span>
+          </div>
+          <button @click="regeneratePart('cta')" class="text-brand-green hover:underline font-semibold text-[11px] flex items-center gap-1">
+            <i data-lucide="rotate-cw" class="w-3 h-3"></i> Putar CTA
+          </button>
+        </div>
+
+        <!-- VERSION SELECTOR -->
+        <div class="pt-2 flex items-center gap-2">
+          <span class="text-slate-500 text-xs font-semibold">Riwayat Versi:</span>
+          <div class="flex gap-1.5">
+            <button v-for="(v, vKey) in selectedContent.versions" :key="vKey"
+                    @click="selectedContent.activeVersion = vKey"
+                    :class="selectedContent.activeVersion === vKey ? 'bg-brand-green text-white font-bold' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                    class="px-2.5 py-1 rounded text-xs transition font-mono">
+              {{ vKey }}
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- FOOTER ACTIONS -->
+      <div class="border-t pt-4 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <button @click="markAsPosted(selectedContent)" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1">
+            <i data-lucide="send" class="w-3.5 h-3.5"></i> Mark As Posted
+          </button>
+          <button @click="regenerateEntire(selectedContent)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-brand-green"></i> Buat Versi Baru Penuh
+          </button>
+        </div>
+        <button @click="selectedContent = null" class="px-4 py-1.5 border rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100">
+          Tutup
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL: BATCH SHOOTING LIST -->
+  <div v-if="showBatchModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 border border-slate-100 my-8">
+      <div class="flex items-center justify-between border-b pb-3">
+        <div>
+          <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+            <i data-lucide="film" class="w-5 h-5 text-brand-green"></i>
+            Smart Batch Shooting List (1-Day Shoot Plan)
+          </h3>
+          <p class="text-xs text-slate-500">Kumpulan kebutuhan aset untuk menghemat waktu produksi lapangan.</p>
+        </div>
+        <button @click="showBatchModal = false" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-1 text-xs">
+        <div class="p-3 bg-slate-50 rounded-xl border space-y-2">
+          <h4 class="font-bold text-brand-green uppercase text-[11px] tracking-wider">Prioritas 1: Sesi Menu Utama (Food Hero)</h4>
+          <ul class="list-disc pl-5 space-y-1 text-slate-700">
+            <li>Gurami Bakar: Close-up tekstur bumbu karamel & sambal kecap (Angle 45°).</li>
+            <li>Gurami Asam Manis: High-angle saus mengkilap dengan garnish segar.</li>
+            <li>Nila Goreng: Detail kerenyahan sisik & sambal bawang terpisah.</li>
+            <li>Lele Bakar: Flat lay plating lengkap dengan lalapan daun kemangi.</li>
+          </ul>
+        </div>
+
+        <div class="p-3 bg-slate-50 rounded-xl border space-y-2">
+          <h4 class="font-bold text-brand-green uppercase text-[11px] tracking-wider">Prioritas 2: Suasana & Ambience (Weekend Family)</h4>
+          <ul class="list-disc pl-5 space-y-1 text-slate-700">
+            <li>Area Gazebo & Kolam: Wide shot natural saat golden hour (pukul 16.30).</li>
+            <li>Interaksi Keluarga: Candid tawa santai saat makanan pertama kali disajikan.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="border-t pt-3 flex justify-end">
+        <button @click="showBatchModal = false" class="px-4 py-1.5 bg-brand-green text-white font-semibold rounded-lg text-xs hover:bg-brand-greenDark">
+          Selesai & Tutup
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VUE APPLICATION LOGIC -->
+  <script>
+    const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
+
+    createApp({
+      setup() {
+        const currentTab = ref('dashboard');
+        const detailTab = ref('prompts'); // 'prompts' or 'brief'
+        const toastMessage = ref('');
+
+        const showToast = (msg) => {
+          toastMessage.value = msg;
+          setTimeout(() => { toastMessage.value = ''; }, 2500);
+        };
+
+        const copyToClipboard = (text, successMsg) => {
+          navigator.clipboard.writeText(text).then(() => {
+            showToast(successMsg || 'Berhasil disalin ke clipboard!');
+          });
+        };
+
+        const tabs = [
+          { id: 'dashboard', name: 'Dashboard', icon: 'layout-dashboard' },
+          { id: 'calendar', name: 'Content Calendar', icon: 'calendar' },
+          { id: 'production', name: 'Production Board', icon: 'kanban' },
+          { id: 'database', name: 'Menu & Promo', icon: 'database' },
+          { id: 'assets', name: 'Asset Library', icon: 'image' },
+          { id: 'analytics', name: 'Analytics & KPI', icon: 'bar-chart-3' },
+          { id: 'settings', name: 'Brand Identity', icon: 'shield-check' }
+        ];
+
+        const showGeneratorModal = ref(false);
+        const showBatchModal = ref(false);
+        const showAddAssetModal = ref(false);
+        const isGenerating = ref(false);
+        const generationProgress = ref(0);
+        const generationStepText = ref('');
+        const selectedContent = ref(null);
+
+        const genForm = ref({
+          startDate: '2026-09-10',
+          endDate: '2026-10-09',
+          totalPosts: 30,
+          singlePhotoCount: 16,
+          carouselCount: 14,
+          promoCount: 0,
+          objectives: ['Awareness', 'Appetite', 'Engagement', 'Trust', 'Community']
+        });
+
+        const availableObjectives = [
+          'Awareness', 'Engagement', 'Appetite', 'Trust', 'Community', 'Promotion', 'Brand Building'
+        ];
+
+        const formatSum = computed(() => {
+          return (Number(genForm.value.singlePhotoCount) || 0) +
+                 (Number(genForm.value.carouselCount) || 0) +
+                 (Number(genForm.value.promoCount) || 0);
+        });
+
+        const syncFormatCounts = () => {
+          const tot = genForm.value.totalPosts;
+          genForm.value.singlePhotoCount = Math.round(tot * 0.53);
+          genForm.value.carouselCount = tot - genForm.value.singlePhotoCount;
+          genForm.value.promoCount = 0;
+        };
+
+        const kanbanColumns = [
+          { id: 'IDEA', label: 'Idea' },
+          { id: 'SCRIPT_READY', label: 'Script Ready' },
+          { id: 'ASSET_NEEDED', label: 'Asset Needed' },
+          { id: 'SHOOTING', label: 'Shooting' },
+          { id: 'EDITING', label: 'Editing' },
+          { id: 'READY_TO_POST', label: 'Ready to Post' },
+          { id: 'POSTED', label: 'Posted' }
+        ];
+
+        const defaultMenus = [
+          { menu_id: 'M01', menu_name: 'Gurami Bakar Bumbu Tradisional', fish_type: 'Gurami', cooking_method: 'Bakar', sauce: 'Bumbu Bakar Manis Gurih', description: 'Gurami segar dibakar dengan arang kelapa dan olesan rempah khas Suharno 2.', price: null, available: true },
+          { menu_id: 'M02', menu_name: 'Gurami Asam Manis', fish_type: 'Gurami', cooking_method: 'Goreng', sauce: 'Saus Asam Manis Segar', description: 'Ikan gurami renyah disiram kuah asam manis kental nan segar.', price: null, available: true },
+          { menu_id: 'M03', menu_name: 'Nila Goreng Kering Renyah', fish_type: 'Nila', cooking_method: 'Goreng', sauce: 'Sambal Bawang & Kecap Pedas', description: 'Ikan nila goreng renyah sampai ke duri sirip dengan bumbu bawang ketumbar.', price: null, available: true },
+          { menu_id: 'M04', menu_name: 'Nila Bakar Rujak', fish_type: 'Nila', cooking_method: 'Bakar', sauce: 'Bumbu Rujak Pedas Segar', description: 'Nila bakar berpadu kuah bumbu rujak kaya rempah nusantara.', price: null, available: true },
+          { menu_id: 'M05', menu_name: 'Lele Goreng Sambal Spesial', fish_type: 'Lele', cooking_method: 'Goreng', sauce: 'Sambal Terasi / Sambal Bawang', description: 'Ikan lele gurih tanpa bau lumpur, digoreng garing renyah.', price: null, available: true },
+          { menu_id: 'M06', menu_name: 'Kalper Bakar Rempah', fish_type: 'Kalper', cooking_method: 'Bakar', sauce: 'Bumbu Bakar Nusantara', description: 'Ikan kalper segar tangkapan kolam dengan daging tebal berkarakter.', price: null, available: true }
+        ];
+
+        const defaultPromotions = [
+          { promotion_id: 'PR01', name: 'Paket Makan Rame-Rame Keluarga', description: 'Paket santai weekend untuk meja 4-6 orang.', discount: 'Harga Spesial Paket', start_date: '2026-09-01', end_date: '2026-10-31', terms: 'Berlaku santap di tempat (Dine-in).', active: true },
+          { promotion_id: 'PR02', name: 'Promo Pemancing Weekday Hemat', description: 'Free es teh bagi pelanggan santap hasil pancingan.', discount: 'Free Es Teh Manis', start_date: '2026-09-10', end_date: '2026-10-10', terms: 'Hanya hari Selasa - Kamis.', active: true }
+        ];
+
+        const defaultAssets = [
+          { asset_id: 'AST01', file_name: 'gurami_bakar_hero_table.jpg', type: 'JPG', menu: 'Gurami Bakar Bumbu Tradisional', category: 'Food', tags: ['gurami', 'bakar', 'hero'], used_count: 3 },
+          { asset_id: 'AST02', file_name: 'gurami_asam_manis_closeup.jpg', type: 'JPG', menu: 'Gurami Asam Manis', category: 'Food', tags: ['gurami', 'asam manis', 'sauce'], 1 },
+          { asset_id: 'AST03', file_name: 'nila_goreng_crispy_platter.jpg', type: 'JPG', menu: 'Nila Goreng Kering Renyah', category: 'Food', tags: ['nila', 'goreng', 'sambal'], 2 },
+          { asset_id: 'AST05', file_name: 'ambience_gazebo_keluarga.jpg', type: 'JPG', menu: 'Suasana Pemancingan', category: 'Restaurant', tags: ['family', 'gazebo', 'kolam'], 2 }
+        ];
+
+        const menus = ref(JSON.parse(localStorage.getItem('sh2_menus')) || defaultMenus);
+        const promotions = ref(JSON.parse(localStorage.getItem('sh2_promotions')) || defaultPromotions);
+        const assets = ref(JSON.parse(localStorage.getItem('sh2_assets')) || defaultAssets);
+        const contents = ref(JSON.parse(localStorage.getItem('sh2_contents')) || []);
+
+        const seedDefaultMenu = () => {
+          menus.value = [...defaultMenus];
+          promotions.value = [...defaultPromotions];
+          assets.value = [...defaultAssets];
+          persistData();
+        };
+
+        const persistData = () => {
+          localStorage.setItem('sh2_menus', JSON.stringify(menus.value));
+          localStorage.setItem('sh2_promotions', JSON.stringify(promotions.value));
+          localStorage.setItem('sh2_assets', JSON.stringify(assets.value));
+          localStorage.setItem('sh2_contents', JSON.stringify(contents.value));
+        };
+
+        // ==============================================================
+        // AI PROMPT SYNTHESIZER ENGINE (IMAGE & VIDEO)
+        // ==============================================================
+        const generateImagePrompt = (menu, method, sauce, format) => {
+          return `Cinematic food photography of authentic Indonesian ${menu}, meticulously grilled with charcoal (${method}), glistening with savory sweet ${sauce}. Served on a traditional earthenware plate lined with a fresh banana leaf, alongside a small bowl of spicy sambal bajak and fresh cucumber slices. Shot at an appetizing 45-degree angle, rustic clean wooden restaurant table, soft warm daylight streaming in, delicate appetizing steam rising naturally from the fish. Captured on Canon EOS R5, 85mm f/2.8 macro lens, photorealistic, rich authentic food texture, natural Indonesian restaurant ambiance, zero oversaturation --ar 4:5 --style raw --v 6.1`;
+        };
+
+        const generateVideoPrompt = (menu, method, sauce) => {
+          return `Slow motion 4K commercial food video. Smooth 45-degree cinematic camera dolly-in towards freshly served Indonesian ${menu}. Hot steam gently rises from the sizzling charred skin with caramelized ${sauce}. Rack focus smoothly transitions from the crispy grilled fish texture to a steaming bowl of sambal on a banana leaf plate. Warm natural restaurant daylight, serene outdoor dining atmosphere, subtle authentic breeze, 60fps, ultra-realistic food cinematography.`;
+        };
+
+        // ==============================================================
+        // CONTENT GENERATION ENGINE
+        // ==============================================================
+        const startGeneration = async () => {
+          if (formatSum.value !== genForm.value.totalPosts) return;
+          isGenerating.value = true;
+          generationProgress.value = 15;
+          generationStepText.value = 'Menganalisis database menu dan identitas brand Suharno 2...';
+
+          await new Promise(r => setTimeout(r, 400));
+          generationProgress.value = 45;
+          generationStepText.value = 'Menjalankan Anti-Repetition Engine & Objective Distributor...';
+
+          await new Promise(r => setTimeout(r, 400));
+          generationProgress.value = 75;
+          generationStepText.value = 'Mensintesis AI Visual Prompts (Midjourney & Runway Gen-3)...';
+
+          buildEngineeredContents();
+
+          await new Promise(r => setTimeout(r, 350));
+          generationProgress.value = 100;
+          generationStepText.value = 'Perencanaan Kalender & Bank Prompts Selesai!';
+
+          await new Promise(r => setTimeout(r, 250));
+          isGenerating.value = false;
+          showGeneratorModal.value = false;
+          currentTab.value = 'calendar';
+          persistData();
+          reinitIcons();
+        };
+
+        const buildEngineeredContents = () => {
+          const total = genForm.value.totalPosts;
+          const start = new Date(genForm.value.startDate);
+          const result = [];
+          
+          const pillarSeq = ['Food/Appetite', 'Food/Appetite', 'Engagement', 'Trust', 'Community', 'Food/Appetite', 'Social Proof'];
+          const hookBankFood = [
+            "Kalau gurami seenak ini, kamu masih mau makan di rumah?",
+            "Jangan lihat postingan ini kalau kamu belum sempat makan siang.",
+            "Aroma bakarannya saja sudah bikin satu meja nggak sabar makan.",
+            "Ikan segar langsung dari kolam, digoreng renyah sampai ke sirip.",
+            "Bumbu bakar meresap sampai ke serat daging ikan terdalam."
+          ];
+          const hookBankEng = [
+            "Kalau cuma boleh pilih satu: Tim Gurami Bakar atau Nila Goreng Kering?",
+            "Jujur, kamu tim makan ikan dicocol sambal atau sambalnya disiram langsung?",
+            "Sebut 1 orang yang paling wajib kamu culik ke Pemancingan Suharno 2 weekend ini!"
+          ];
+          const hookBankTrust = [
+            "Kenapa ikan di sini tidak ada bau lumpur sama sekali? Ini rahasianya.",
+            "Intip proses dapur: Setiap ikan dibersihkan teliti sebelum masuk wajan.",
+            "Bukan minyak kemarin sore. Kami jaga kualitas demi rasa autentik keluarga."
+          ];
+          const hookBankComm = [
+            "Satu meja panjang, sepiring ikan bakar hangat, dan cerita keluarga yang tak ada habisnya.",
+            "Tempat pelarian paling tenang sehabis sepekan penuh dengan rutinitas."
+          ];
+          const hookBankProof = [
+            "Kata pengunjung setia kami: 'Rasa bumbu bakarnya tidak pernah berubah sejak dulu'."
+          ];
+
+          const ctaPool = [
+            "Tag orang yang paling ingin kamu ajak makan bersama hari ini.",
+            "Save postingan ini buat referensi makan akhir pekan nanti.",
+            "Tulis di kolom komentar: Kamu lebih suka bakar atau goreng?",
+            "Bagikan postingan ini ke grup keluarga sekarang!"
+          ];
+
+          let lastTopic = '';
+          let last2Topic = '';
+          let lastCtaIdx = -1;
+
+          for (let i = 0; i < total; i++) {
+            const currentDate = new Date(start);
+            currentDate.setDate(start.getDate() + i);
+            const dateStr = currentDate.toISOString().split('T')[0];
+            const dayOfWeek = currentDate.getDay();
+
+            let pillar = pillarSeq[i % pillarSeq.length];
+            if (dayOfWeek === 5) pillar = 'Food/Appetite';
+            else if (dayOfWeek === 6) pillar = 'Community';
+            else if (dayOfWeek === 0) pillar = 'Food/Appetite';
+
+            const candidateMenus = menus.value.filter(m => m.menu_name !== lastTopic && m.menu_name !== last2Topic);
+            const pickedMenu = candidateMenus[i % candidateMenus.length] || menus.value[0];
+            last2Topic = lastTopic;
+            lastTopic = pickedMenu.menu_name;
+
+            let format = 'Single Photo';
+            if (i % 2 === 1 && result.filter(c => c.format === 'Carousel').length < genForm.value.carouselCount) {
+              format = 'Carousel';
+            } else if (result.filter(c => c.format === 'Single Photo').length >= genForm.value.singlePhotoCount) {
+              format = 'Carousel';
+            }
+
+            let hook = '';
+            if (pillar === 'Food/Appetite') hook = hookBankFood[i % hookBankFood.length];
+            else if (pillar === 'Engagement') hook = hookBankEng[i % hookBankEng.length];
+            else if (pillar === 'Trust') hook = hookBankTrust[i % hookBankTrust.length];
+            else if (pillar === 'Community') hook = hookBankComm[i % hookBankComm.length];
+            else hook = hookBankProof[i % hookBankProof.length];
+
+            let ctaIdx = (lastCtaIdx + 1 + (i % 2)) % ctaPool.length;
+            lastCtaIdx = ctaIdx;
+            const cta = ctaPool[ctaIdx];
+
+            const matched = assets.value.find(a => 
+              a.menu.toLowerCase().includes(pickedMenu.fish_type.toLowerCase()) || 
+              (pillar === 'Community' && a.category === 'Restaurant')
+            );
+
+            const visualBrief = {
+              subject: `${pickedMenu.menu_name} (${pickedMenu.cooking_method})`,
+              ratio: '4:5 (Instagram Feed Portrait)',
+              angle: format === 'Single Photo' ? '45-degree appetizing food angle' : 'Eye-level & Top-down mix',
+              lighting: 'Natural warm restaurant daylight (golden tone, no harsh glare)',
+              focus: `Tekstur garing ${pickedMenu.fish_type}, lelehan bumbu ${pickedMenu.sauce}, dan cabai segar pada sambal`,
+              branding: 'Logo kecil Pemancingan Suharno 2 di pojok bawah'
+            };
+
+            const imagePrompt = generateImagePrompt(pickedMenu.menu_name, pickedMenu.cooking_method, pickedMenu.sauce, format);
+            const videoPrompt = generateVideoPrompt(pickedMenu.menu_name, pickedMenu.cooking_method, pickedMenu.sauce);
+
+            const carouselSlides = [
+              `Slide 1 (Hook): "${hook}"`,
+              `Slide 2 (Rasa Penasaran): Cari tempat makan ikan segar yang ramah keluarga besar?`,
+              `Slide 3 (Menu Utama): Sajian andalan: ${pickedMenu.menu_name}.`,
+              `Slide 4 (Detail Rasa): Olahan ${pickedMenu.cooking_method} berpadu dengan ${pickedMenu.sauce}.`,
+              `Slide 5 (Suasana Asri): Duduk santai di gazebo tepi kolam ikan bersama orang tersayang.`,
+              `Slide 6 (Call To Action): ${cta}`
+            ];
+
+            const caption = `${hook}\n\nDi Pemancingan Suharno 2, kami menyajikan ${pickedMenu.menu_name} yang diolah langsung dari ikan segar pilihan. Disajikan hangat bersama ${pickedMenu.sauce} yang nikmat disantap bersama nasi pulen hangat dan lalapan.\n\nPilihan tepat untuk berkumpul bersama keluarga di suasana alam yang tenang dan asri.\n\n📍 Pemancingan Suharno 2\n👉 ${cta}`;
+
+            let score = 85 + (i % 12);
+            if (matched) score += 3;
+            if (score > 98) score = 98;
+
+            result.push({
+              id: `SH2-${dateStr.replace(/-/g, '')}-${String(i + 1).padStart(3, '0')}`,
+              date: dateStr,
+              pillar: pillar,
+              topic: pickedMenu.menu_name,
+              format: format,
+              status: matched ? 'READY' : 'NEEDS_ASSET',
+              stage: matched ? 'SCRIPT_READY' : 'ASSET_NEEDED',
+              matchedAsset: matched ? matched.file_name : null,
+              score: score,
+              activeVersion: 'V1',
+              versions: {
+                V1: {
+                  hook,
+                  visualBrief,
+                  imagePrompt,
+                  videoPrompt,
+                  carouselSlides,
+                  caption,
+                  cta
+                }
+              }
+            });
+          }
+
+          contents.value = result;
+          persistData();
+        };
+
+        const currentVersionData = computed(() => {
+          if (!selectedContent.value) return {};
+          const v = selectedContent.value.activeVersion || 'V1';
+          return selectedContent.value.versions[v] || selectedContent.value.versions['V1'];
+        });
+
+        const openDetailModal = (item) => {
+          selectedContent.value = item;
+          detailTab.value = 'prompts';
+          nextTick(() => reinitIcons());
+        };
+
+        const openGeneratorModal = () => {
+          showGeneratorModal.value = true;
+          nextTick(() => reinitIcons());
+        };
+
+        const regeneratePart = (part) => {
+          if (!selectedContent.value) return;
+          const curr = { ...currentVersionData.value };
+          const vKeys = Object.keys(selectedContent.value.versions);
+          const newVKey = `V${vKeys.length + 1}`;
+
+          if (part === 'hook') {
+            curr.hook = `[Alternatif] Pilihan terbaik santap siang: kenikmatan ${selectedContent.value.topic} khas racikan kami.`;
+          } else if (part === 'cta') {
+            curr.cta = "Yuk simpan postingan ini sekarang dan bagikan ke keluarga!";
+          } else if (part === 'visual') {
+            curr.visualBrief = {
+              ...curr.visualBrief,
+              angle: 'Top-down (Flat Lay) angle kelengkapan sambal lalapan.',
+              lighting: 'Soft diffused natural daylight dekat kolam.'
+            };
+          } else if (part === 'caption') {
+            curr.caption = `Mencari hidangan yang pas untuk santap santai? ${selectedContent.value.topic} selalu jadi pilihan favorit di meja kami.\n\nDibuat fresh dengan citarasa autentik bumbu tradisional khas Pemancingan Suharno 2.\n\n${curr.cta}`;
+          }
+
+          selectedContent.value.versions[newVKey] = curr;
+          selectedContent.value.activeVersion = newVKey;
+          persistData();
+          showToast(`Versi baru (${newVKey}) berhasil digenerate!`);
+        };
+
+        const regenerateEntire = (item) => {
+          const vKeys = Object.keys(item.versions);
+          const nextV = `V${vKeys.length + 1}`;
+          const newHook = `Sensasi aroma bumbu gurih ${item.topic} yang selalu dirindukan sekeluarga.`;
+          const newCta = "Ajak orang tuamu makan siang bersama di sini akhir pekan ini!";
+          
+          item.versions[nextV] = {
+            hook: newHook,
+            visualBrief: {
+              subject: `${item.topic} Fresh Serve`,
+              ratio: '4:5',
+              angle: '45-degree dynamic close up',
+              lighting: 'Warm natural light',
+              focus: 'Uap panas mengepul dari ikan bakar segar',
+              branding: 'Logo Suharno 2 watermark subtle'
+            },
+            imagePrompt: generateImagePrompt(item.topic, 'Bakar/Goreng', 'Bumbu Khas', item.format),
+            videoPrompt: generateVideoPrompt(item.topic, 'Bakar/Goreng', 'Bumbu Khas'),
+            carouselSlides: [
+              `Slide 1: "${newHook}"`,
+              `Slide 2: Dibuat dari bahan segar tanpa bahan pengawet.`,
+              `Slide 3: Pilihan rempah lokal pilihan khas Nusantara.`,
+              `Slide 4: Paling cocok dimakan selagi hangat bersama lalapan.`,
+              `Slide 5: Suasana alam terbuka ramah anak dan keluarga.`,
+              `Slide 6: ${newCta}`
+            ],
+            caption: `${newHook}\n\nSantap nikmat di tepi kolam dengan sepiring ${item.topic}. Rasa autentik yang diracik khusus untuk momen kebersamaan.\n\n📍 Pemancingan Suharno 2\n👉 ${newCta}`,
+            cta: newCta
+          };
+          item.activeVersion = nextV;
+          persistData();
+          showToast(`Versi penuh (${nextV}) berhasil dibuat!`);
+        };
+
+        const markAsPosted = (item) => {
+          item.status = 'POSTED';
+          item.stage = 'POSTED';
+          persistData();
+          showToast('Status berhasil diubah menjadi POSTED!');
+        };
+
+        const getContentsByStage = (stageId) => contents.value.filter(c => (c.stage || 'IDEA') === stageId);
+        const countPillar = (pillar) => contents.value.filter(c => c.pillar === pillar).length;
+        const countFormat = (fmt) => contents.value.filter(c => c.format === fmt).length;
+        const countStatus = (st) => contents.value.filter(c => c.status === st).length;
+
+        const pillarDistribution = computed(() => {
+          const total = contents.value.length || 1;
+          const map = {};
+          ['Food/Appetite', 'Engagement', 'Trust', 'Community', 'Social Proof'].forEach(p => {
+            map[p] = Math.round((countPillar(p) / total) * 100);
+          });
+          return map;
+        });
+
+        const distributionWarning = computed(() => {
+          const foodPct = pillarDistribution.value['Food/Appetite'] || 0;
+          if (foodPct > 55) {
+            return 'Peringatan: Food/Appetite mendominasi lebih dari 55% konten. Pertimbangkan menambah pilar Community atau Trust untuk keseimbangan feed.';
+          }
+          return null;
+        });
+
+        const averageScore = computed(() => {
+          if (!contents.value.length) return 0;
+          const sum = contents.value.reduce((acc, c) => acc + (c.score || 80), 0);
+          return Math.round(sum / contents.value.length);
+        });
+
+        const topContents = computed(() => [...contents.value].sort((a, b) => b.score - a.score).slice(0, 5));
+
+        const formatDate = (dateStr) => {
+          if (!dateStr) return '';
+          const parts = dateStr.split('-');
+          return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        };
+
+        const getPillarLabel = (p) => {
+          const dict = {
+            'Food/Appetite': 'Food / Appetite (Sajian Ikan & Selera)',
+            'Engagement': 'Engagement (Tanya Jawab & Pilihan Menu)',
+            'Trust': 'Trust (Dapur Bersih & Ikan Segar)',
+            'Community': 'Community (Keluarga & Suasana Santai)',
+            'Social Proof': 'Social Proof (Pengalaman Pengunjung)'
+          };
+          return dict[p] || p;
+        };
+
+        const getPillarColorClass = (p) => {
+          if (p === 'Food/Appetite') return 'bg-brand-green';
+          if (p === 'Engagement') return 'bg-amber-500';
+          if (p === 'Trust') return 'bg-blue-500';
+          if (p === 'Community') return 'bg-emerald-500';
+          return 'bg-purple-500';
+        };
+
+        const getPillarBadgeClass = (p) => {
+          if (p === 'Food/Appetite') return 'bg-brand-greenLight text-brand-greenDark font-bold';
+          if (p === 'Engagement') return 'bg-amber-100 text-amber-800 font-bold';
+          if (p === 'Trust') return 'bg-blue-100 text-blue-800 font-bold';
+          if (p === 'Community') return 'bg-emerald-100 text-emerald-800 font-bold';
+          return 'bg-purple-100 text-purple-800 font-bold';
+        };
+
+        const getStatusBadgeClass = (st) => {
+          if (st === 'READY') return 'bg-emerald-100 text-emerald-800';
+          if (st === 'NEEDS_ASSET') return 'bg-amber-100 text-amber-800';
+          if (st === 'NEEDS_REVIEW') return 'bg-rose-100 text-rose-800';
+          if (st === 'POSTED') return 'bg-blue-100 text-blue-800';
+          return 'bg-slate-100 text-slate-700';
+        };
+
+        const getStatusBorderColor = (st) => {
+          if (st === 'READY') return 'border-l-emerald-600';
+          if (st === 'NEEDS_ASSET') return 'border-l-amber-500';
+          if (st === 'NEEDS_REVIEW') return 'border-l-brand-red';
+          if (st === 'POSTED') return 'border-l-blue-600';
+          return 'border-l-slate-400';
+        };
+
+        // EXCEL EXPORT (DILENGKAPI AI PROMPT IMAGE & VIDEO)
+        const exportToExcel = () => {
+          if (!contents.value.length) {
+            alert('Belum ada data konten untuk diexport. Silakan klik Generate terlebih dahulu.');
+            return;
+          }
+
+          const wb = XLSX.utils.book_new();
+
+          // 1. Content Calendar
+          const calData = contents.value.map(c => {
+            const v = c.versions[c.activeVersion] || c.versions['V1'];
+            return {
+              'Content ID': c.id,
+              'Date': c.date,
+              'Format': c.format,
+              'Pillar': c.pillar,
+              'Topic / Menu': c.topic,
+              'Hook': v.hook,
+              'CTA': v.cta,
+              'Status': c.status,
+              'Stage': c.stage,
+              'Score': c.score
+            };
+          });
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(calData), 'Content Calendar');
+
+          // 2. Content Detail & AI Prompts
+          const detailData = contents.value.map(c => {
+            const v = c.versions[c.activeVersion] || c.versions['V1'];
+            return {
+              'Content ID': c.id,
+              'Topic': c.topic,
+              'Midjourney/FLUX Image Prompt': v.imagePrompt,
+              'Runway/Luma Video Prompt': v.videoPrompt,
+              'Visual Brief Focus': v.visualBrief?.focus,
+              'Caption Full': v.caption,
+              'Carousel Slides': v.carouselSlides ? v.carouselSlides.join(' | ') : '-',
+              'Matched Asset': c.matchedAsset || 'Asset Needed'
+            };
+          });
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailData), 'AI Prompts & Details');
+
+          // 3. Asset Requirements
+          const assetData = contents.value.map(c => ({
+            'Date': c.date,
+            'Content ID': c.id,
+            'Required Subject': c.topic,
+            'Available Asset': c.matchedAsset ? 'YES (' + c.matchedAsset + ')' : 'NO (Perlu Shooting/AI Generate)',
+            'Action Needed': c.matchedAsset ? 'Siap digunakan' : 'Ambil foto asli atau generate via prompt'
+          }));
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(assetData), 'Asset Requirements');
+
+          XLSX.writeFile(wb, `SUHARNO2_Content_Plan_AI_${new Date().toISOString().split('T')[0]}.xlsx`);
+          showToast('File Excel dengan AI Prompts berhasil diunduh!');
+        };
+
+        const reinitIcons = () => {
+          nextTick(() => {
+            if (window.lucide) lucide.createIcons();
+          });
+        };
+
+        watch(currentTab, () => reinitIcons());
+        watch(detailTab, () => reinitIcons());
+
+        onMounted(() => {
+          if (!contents.value.length) {
+            buildEngineeredContents();
+          }
+          reinitIcons();
+        });
+
+        return {
+          currentTab,
+          detailTab,
+          toastMessage,
+          tabs,
+          showGeneratorModal,
+          showBatchModal,
+          showAddAssetModal,
+          isGenerating,
+          generationProgress,
+          generationStepText,
+          genForm,
+          availableObjectives,
+          formatSum,
+          syncFormatCounts,
+          kanbanColumns,
+          menus,
+          promotions,
+          assets,
+          contents,
+          seedDefaultMenu,
+          startGeneration,
+          selectedContent,
+          currentVersionData,
+          openDetailModal,
+          openGeneratorModal,
+          regeneratePart,
+          regenerateEntire,
+          markAsPosted,
+          copyToClipboard,
+          getContentsByStage,
+          countPillar,
+          countFormat,
+          countStatus,
+          pillarDistribution,
+          distributionWarning,
+          averageScore,
+          topContents,
+          formatDate,
+          getPillarLabel,
+          getPillarColorClass,
+          getPillarBadgeClass,
+          getStatusBadgeClass,
+          getStatusBorderColor,
+          exportToExcel
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
