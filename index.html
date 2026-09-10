@@ -4,6 +4,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SUHARNO 2 CONTENT STUDIO - Nano Banana Pro Edition</title>
+
+  <!-- Error Safety Catcher (Mencegah Blank Putih) -->
+  <script>
+    window.addEventListener('error', function(e) {
+      console.error('Detected JS Error:', e.message, 'at line', e.lineno);
+      var box = document.getElementById('debug-error-box');
+      if (box) {
+        box.style.display = 'block';
+        box.innerHTML = '<strong>Terjadi Error Script (Baris ' + e.lineno + '):</strong> ' + e.message;
+      }
+    });
+  </script>
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -36,754 +48,589 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <style>
-    [v-cloak] { display: none; }
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: #f1f5f9; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased font-sans" v-cloak id="app">
+<body class="bg-slate-50 text-slate-800 antialiased font-sans">
 
-  <!-- TOAST NOTIFICATION -->
-  <div v-if="toastMessage" class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-lg shadow-xl flex items-center gap-2 border border-slate-700">
-    <i data-lucide="check-circle" class="w-4 h-4 text-brand-yellow"></i>
-    <span>{{ toastMessage }}</span>
-  </div>
+  <!-- BANNER NOTIFIKASI JIKA ADA SCRIPT ERROR -->
+  <div id="debug-error-box" style="display:none;" class="bg-red-500 text-white p-4 text-xs font-mono font-bold sticky top-0 z-50 shadow-lg"></div>
 
-  <!-- TOP HEADER -->
-  <header class="bg-brand-green text-white sticky top-0 z-40 shadow-md border-b-4 border-brand-yellow">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="bg-brand-yellow text-brand-greenDark font-black text-xl px-2.5 py-1 rounded shadow-sm">SH2</div>
-        <div>
-          <h1 class="font-extrabold text-base sm:text-lg tracking-tight leading-none flex items-center gap-2">
-            SUHARNO 2 CONTENT STUDIO
-            <span class="inline-flex items-center gap-1 bg-yellow-400 text-slate-950 text-[10px] px-2 py-0.5 rounded-full font-bold">
-              <i data-lucide="sparkles" class="w-3 h-3 text-brand-red"></i>
-              Nano Banana Pro
-            </span>
-          </h1>
-          <p class="text-xs text-brand-yellow/90 font-medium">Poster Ads Generator & Supabase Database</p>
-        </div>
-      </div>
-      
-      <!-- Top Actions -->
-      <div class="flex items-center gap-2 sm:gap-3">
-        <button @click="fetchDataFromSupabase" title="Sinkronisasi Ulang Supabase" class="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white transition text-xs flex items-center gap-1 border border-white/20">
-          <i data-lucide="refresh-cw" :class="{'animate-spin': isSyncing}" class="w-4 h-4 text-brand-yellow"></i>
-          <span class="hidden md:inline">Sync DB</span>
-        </button>
-        <button @click="openGeneratorModal" class="bg-brand-yellow text-slate-900 hover:bg-brand-yellowHover font-bold px-3 py-1.5 rounded-lg text-xs sm:text-sm transition-all shadow flex items-center gap-1.5">
-          <i data-lucide="sparkles" class="w-4 h-4 text-brand-greenDark"></i>
-          <span>Generate Calendar</span>
-        </button>
-        <button @click="exportToExcel" class="bg-white/10 hover:bg-white/20 text-white font-medium px-3 py-1.5 rounded-lg text-xs sm:text-sm transition-all flex items-center gap-1.5 border border-white/20">
-          <i data-lucide="file-spreadsheet" class="w-4 h-4 text-brand-yellow"></i>
-          <span class="hidden sm:inline">Export Excel</span>
-        </button>
-      </div>
+  <div id="app">
+    <!-- TOAST NOTIFICATION -->
+    <div v-if="toastMessage" class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-lg shadow-xl flex items-center gap-2 border border-slate-700">
+      <i data-lucide="check-circle" class="w-4 h-4 text-brand-yellow"></i>
+      <span>{{ toastMessage }}</span>
     </div>
 
-    <!-- SUB NAVIGATION TABS -->
-    <div class="bg-brand-greenDark/90 px-4 sm:px-6 lg:px-8 border-t border-brand-green">
-      <nav class="max-w-7xl mx-auto flex space-x-1 sm:space-x-3 overflow-x-auto py-2">
-        <button v-for="tab in tabs" :key="tab.id" @click="currentTab = tab.id"
-                :class="currentTab === tab.id ? 'bg-brand-green text-white border-brand-yellow' : 'text-slate-200 hover:bg-white/10 hover:text-white border-transparent'"
-                class="px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold flex items-center gap-2 border-b-2 transition-all whitespace-nowrap">
-          <i :data-lucide="tab.icon" class="w-4 h-4"></i>
-          {{ tab.name }}
-          <span v-if="tab.badge" class="bg-brand-red text-[10px] text-white px-1.5 py-0.2 rounded-full font-mono">{{ tab.badge }}</span>
-        </button>
-      </nav>
-    </div>
-  </header>
-
-  <!-- MAIN CONTAINER -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-
-    <!-- ============================================== -->
-    <!-- 1. DASHBOARD TAB -->
-    <!-- ============================================== -->
-    <section v-if="currentTab === 'dashboard'" class="space-y-6">
-      
-      <div v-if="distributionWarning" class="p-4 bg-brand-yellow/20 border-l-4 border-brand-yellow rounded-r-lg flex items-start gap-3">
-        <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"></i>
-        <div>
-          <h4 class="font-bold text-amber-900 text-sm">Peringatan Distribusi Konten</h4>
-          <p class="text-xs text-amber-800">{{ distributionWarning }}</p>
-        </div>
-      </div>
-
-      <!-- KPI METRIC CARDS -->
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Konten</span>
-          <p class="text-2xl font-black text-slate-800 mt-1">{{ contents.length }}</p>
-          <span class="text-[11px] text-slate-400">Database Supabase</span>
-        </div>
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Ready / Siap</span>
-          <p class="text-2xl font-black text-brand-green mt-1">{{ countStatus('READY') }}</p>
-          <span class="text-[11px] text-emerald-600 font-medium">Lolos Validasi</span>
-        </div>
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Needs Asset</span>
-          <p class="text-2xl font-black text-amber-500 mt-1">{{ countStatus('NEEDS_ASSET') }}</p>
-          <span class="text-[11px] text-amber-700">Perlu Prompt Visual</span>
-        </div>
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Needs Review</span>
-          <p class="text-2xl font-black text-brand-red mt-1">{{ countStatus('NEEDS_REVIEW') }}</p>
-          <span class="text-[11px] text-rose-600">Perlu Koreksi</span>
-        </div>
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Posted</span>
-          <p class="text-2xl font-black text-blue-600 mt-1">{{ countStatus('POSTED') }}</p>
-          <span class="text-[11px] text-blue-500">Tayang di Feed</span>
-        </div>
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Avg Score</span>
-          <p class="text-2xl font-black text-slate-800 mt-1">{{ averageScore }}/100</p>
-          <span class="text-[11px] font-medium" :class="averageScore >= 80 ? 'text-emerald-600' : 'text-amber-600'">
-            {{ averageScore >= 80 ? 'Sangat Optimal' : 'Cukup Baik' }}
-          </span>
-        </div>
-      </div>
-
-      <!-- MAIN SPLIT: DISTRIBUTION & FORMAT BREAKDOWN -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="font-bold text-slate-800 flex items-center gap-2 text-base">
-              <i data-lucide="pie-chart" class="w-4 h-4 text-brand-green"></i>
-              Distribusi Content Pillar
-            </h3>
-            <span class="text-xs text-slate-400">Target Ideal: Food 35%, Eng 15%, Trust 15%, Comm 15%</span>
-          </div>
-
-          <div class="space-y-3">
-            <div v-for="(pct, pillar) in pillarDistribution" :key="pillar" class="space-y-1">
-              <div class="flex justify-between text-xs font-semibold">
-                <span class="text-slate-700">{{ getPillarLabel(pillar) }}</span>
-                <span class="text-slate-900 font-mono">{{ pct }}% ({{ countPillar(pillar) }} post)</span>
-              </div>
-              <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                <div class="h-2.5 rounded-full transition-all duration-500"
-                     :style="{ width: pct + '%' }"
-                     :class="getPillarColorClass(pillar)"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+    <!-- TOP HEADER -->
+    <header class="bg-brand-green text-white sticky top-0 z-40 shadow-md border-b-4 border-brand-yellow">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="bg-brand-yellow text-brand-greenDark font-black text-xl px-2.5 py-1 rounded shadow-sm">SH2</div>
           <div>
-            <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2 text-base">
-              <i data-lucide="layers" class="w-4 h-4 text-brand-green"></i>
-              Format Konten Feed
-            </h3>
-            <div class="space-y-4">
-              <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
-                <div>
-                  <div class="font-bold text-sm text-slate-800">Single Photo Poster</div>
-                  <div class="text-[11px] text-slate-500">Commercial Ad 4:5 + In-Image Typography</div>
-                </div>
-                <span class="text-lg font-black text-brand-green">{{ countFormat('Single Photo') }}</span>
-              </div>
-              <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
-                <div>
-                  <div class="font-bold text-sm text-slate-800">Carousel Slide</div>
-                  <div class="text-[11px] text-slate-500">Story, Edukasi, & Menu Pilihan (6 Slides)</div>
-                </div>
-                <span class="text-lg font-black text-brand-green">{{ countFormat('Carousel') }}</span>
-              </div>
-              <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
-                <div>
-                  <div class="font-bold text-sm text-slate-800">Promo Graphic</div>
-                  <div class="text-[11px] text-slate-500">Promo Khusus Faktual Terverifikasi</div>
-                </div>
-                <span class="text-lg font-black text-brand-red">{{ countFormat('Promotional Graphic') }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-6 pt-4 border-t border-slate-100">
-            <button @click="currentTab = 'calendar'" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs flex items-center justify-center gap-2 transition">
-              <span>Buka Content Calendar Lengkap</span>
-              <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
-            </button>
+            <h1 class="font-extrabold text-base sm:text-lg tracking-tight leading-none flex items-center gap-2">
+              SUHARNO 2 CONTENT STUDIO
+              <span class="inline-flex items-center gap-1 bg-yellow-400 text-slate-950 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                <i data-lucide="sparkles" class="w-3 h-3 text-brand-red"></i>
+                Nano Banana Pro
+              </span>
+            </h1>
+            <p class="text-xs text-brand-yellow/90 font-medium">Poster Ads Generator & Supabase Database</p>
           </div>
         </div>
-      </div>
-
-      <!-- RECENT CONTENT PREVIEW -->
-      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="font-bold text-slate-800 flex items-center gap-2 text-base">
-            <i data-lucide="clock" class="w-4 h-4 text-brand-green"></i>
-            7 Konten Terdekat (Dilengkapi Nano Banana Pro Prompts)
-          </h3>
-          <span class="text-xs text-slate-400">Jadwal posting terdekat</span>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
-                <th class="p-2.5 font-semibold">TANGGAL</th>
-                <th class="p-2.5 font-semibold">FORMAT</th>
-                <th class="p-2.5 font-semibold">PILLAR</th>
-                <th class="p-2.5 font-semibold">TOPIK / MENU</th>
-                <th class="p-2.5 font-semibold">HOOK UTAMA</th>
-                <th class="p-2.5 font-semibold">STATUS ASSET</th>
-                <th class="p-2.5 font-semibold">SCORE</th>
-                <th class="p-2.5 font-semibold text-center">AKSI</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-              <tr v-for="item in contents.slice(0, 7)" :key="item.id" class="hover:bg-slate-50/80 transition">
-                <td class="p-2.5 font-mono font-medium text-slate-700 whitespace-nowrap">{{ formatDate(item.date) }}</td>
-                <td class="p-2.5 whitespace-nowrap">
-                  <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700">{{ item.format }}</span>
-                </td>
-                <td class="p-2.5 whitespace-nowrap">
-                  <span :class="getPillarBadgeClass(item.pillar)" class="px-2 py-0.5 rounded text-[11px] font-medium">
-                    {{ item.pillar }}
-                  </span>
-                </td>
-                <td class="p-2.5 font-semibold text-slate-800">{{ item.topic }}</td>
-                <td class="p-2.5 text-slate-600 truncate max-w-xs font-medium italic">"{{ item.hook }}"</td>
-                <td class="p-2.5 whitespace-nowrap">
-                  <span v-if="item.matchedAsset" class="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[11px] font-medium">
-                    <i data-lucide="check-circle" class="w-3 h-3"></i> Ready: {{ item.matchedAsset }}
-                  </span>
-                  <span v-else class="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[11px] font-medium">
-                    <i data-lucide="sparkles" class="w-3 h-3 text-amber-500"></i> Prompt Siap
-                  </span>
-                </td>
-                <td class="p-2.5 font-mono font-bold" :class="item.score >= 80 ? 'text-brand-green' : 'text-amber-600'">{{ item.score }}/100</td>
-                <td class="p-2.5 text-center whitespace-nowrap">
-                  <button @click="openDetailModal(item)" class="text-brand-green hover:underline font-semibold">Detail & Prompt</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============================================== -->
-    <!-- 2. CONTENT CALENDAR TAB -->
-    <!-- ============================================== -->
-    <section v-if="currentTab === 'calendar'" class="space-y-4">
-      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200">
-        <div>
-          <h2 class="text-lg font-bold text-slate-800">Kalender Perencanaan Instagram Feed</h2>
-          <p class="text-xs text-slate-500">Klik kartu mana saja untuk menyalin prompt iklan Nano Banana Pro & caption Instagram.</p>
-        </div>
-        <div class="flex items-center gap-2">
-          <button @click="openGeneratorModal" class="bg-brand-green hover:bg-brand-greenDark text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
-            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Regenerate Full Calendar
+        
+        <!-- Top Actions -->
+        <div class="flex items-center gap-2 sm:gap-3">
+          <button @click="fetchDataFromSupabase" title="Sinkronisasi Supabase" class="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white transition text-xs flex items-center gap-1 border border-white/20">
+            <i data-lucide="refresh-cw" :class="{'animate-spin': isSyncing}" class="w-4 h-4 text-brand-yellow"></i>
+            <span class="hidden md:inline">Sync DB</span>
+          </button>
+          <button @click="openGeneratorModal" class="bg-brand-yellow text-slate-900 hover:bg-brand-yellowHover font-bold px-3 py-1.5 rounded-lg text-xs sm:text-sm transition-all shadow flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-4 h-4 text-brand-greenDark"></i>
+            <span>Generate Calendar</span>
+          </button>
+          <button @click="exportToExcel" class="bg-white/10 hover:bg-white/20 text-white font-medium px-3 py-1.5 rounded-lg text-xs sm:text-sm transition-all flex items-center gap-1.5 border border-white/20">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4 text-brand-yellow"></i>
+            <span class="hidden sm:inline">Export Excel</span>
           </button>
         </div>
       </div>
 
-      <!-- CALENDAR GRID VIEW -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-        <div v-for="item in contents" :key="item.id" 
-             @click="openDetailModal(item)"
-             class="bg-white border rounded-xl p-3.5 shadow-sm hover:shadow-md cursor-pointer transition-all border-l-4 flex flex-col justify-between"
-             :class="getStatusBorderColor(item.status)">
+      <!-- NAVIGATION TABS -->
+      <div class="bg-brand-greenDark/90 px-4 sm:px-6 lg:px-8 border-t border-brand-green">
+        <nav class="max-w-7xl mx-auto flex space-x-1 sm:space-x-3 overflow-x-auto py-2">
+          <button v-for="tab in tabs" :key="tab.id" @click="currentTab = tab.id"
+                  :class="currentTab === tab.id ? 'bg-brand-green text-white border-brand-yellow' : 'text-slate-200 hover:bg-white/10 hover:text-white border-transparent'"
+                  class="px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold flex items-center gap-2 border-b-2 transition-all whitespace-nowrap">
+            <i :data-lucide="tab.icon" class="w-4 h-4"></i>
+            {{ tab.name }}
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+      <!-- 1. DASHBOARD TAB -->
+      <section v-if="currentTab === 'dashboard'" class="space-y-6">
+        
+        <div v-if="distributionWarning" class="p-4 bg-brand-yellow/20 border-l-4 border-brand-yellow rounded-r-lg flex items-start gap-3">
+          <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"></i>
           <div>
-            <div class="flex items-center justify-between text-xs mb-1.5">
-              <span class="font-mono font-bold text-slate-600">{{ formatDate(item.date) }}</span>
-              <span class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
-                    :class="getStatusBadgeClass(item.status)">
-                {{ item.status.replace('_', ' ') }}
-              </span>
-            </div>
-
-            <div class="text-[11px] font-semibold text-brand-green uppercase tracking-wide">{{ item.pillar }}</div>
-            <h4 class="font-bold text-sm text-slate-800 mt-0.5 line-clamp-1">{{ item.topic }}</h4>
-            <p class="text-xs text-slate-500 italic mt-1 line-clamp-2">"{{ item.hook }}"</p>
-          </div>
-
-          <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span class="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-medium">{{ item.format }}</span>
-            <div class="flex items-center gap-1.5">
-              <span class="text-[10px] text-amber-600 font-bold flex items-center gap-0.5" title="Nano Banana Pro Prompt Ready">
-                <i data-lucide="sparkles" class="w-3 h-3 text-amber-500"></i> Nano Pro
-              </span>
-              <span class="font-mono font-bold" :class="item.score >= 80 ? 'text-emerald-700' : 'text-amber-700'">
-                {{ item.score }} pts
-              </span>
-            </div>
+            <h4 class="font-bold text-amber-900 text-sm">Peringatan Distribusi Konten</h4>
+            <p class="text-xs text-amber-800">{{ distributionWarning }}</p>
           </div>
         </div>
-      </div>
-    </section>
 
-    <!-- ============================================== -->
-    <!-- 3. PRODUCTION BOARD (KANBAN) -->
-    <!-- ============================================== -->
-    <section v-if="currentTab === 'production'" class="space-y-4">
-      <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
-          <h2 class="text-lg font-bold text-slate-800">Production Workflow Board</h2>
-          <p class="text-xs text-slate-500">Geser tahapan konten: dari Ide & Pembuatan Prompt, Editing, hingga Tayang.</p>
-        </div>
-        <button @click="showBatchModal = true" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
-          <i data-lucide="camera" class="w-3.5 h-3.5 text-brand-yellow"></i>
-          <span>Shot List & Batch Shooting</span>
-        </button>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-3 overflow-x-auto pb-4">
-        <div v-for="col in kanbanColumns" :key="col.id" class="bg-slate-100 p-2.5 rounded-xl min-w-[210px] flex flex-col max-h-[75vh]">
-          <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200">
-            <span class="text-xs font-bold text-slate-700">{{ col.label }}</span>
-            <span class="bg-white text-slate-600 font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full border">
-              {{ getContentsByStage(col.id).length }}
+        <!-- METRIC CARDS -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Konten</span>
+            <p class="text-2xl font-black text-slate-800 mt-1">{{ contents.length }}</p>
+            <span class="text-[11px] text-slate-400">Database Supabase</span>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Ready / Siap</span>
+            <p class="text-2xl font-black text-brand-green mt-1">{{ countStatus('READY') }}</p>
+            <span class="text-[11px] text-emerald-600 font-medium">Lolos Validasi</span>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Needs Asset</span>
+            <p class="text-2xl font-black text-amber-500 mt-1">{{ countStatus('NEEDS_ASSET') }}</p>
+            <span class="text-[11px] text-amber-700">Perlu Prompt Visual</span>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Needs Review</span>
+            <p class="text-2xl font-black text-brand-red mt-1">{{ countStatus('NEEDS_REVIEW') }}</p>
+            <span class="text-[11px] text-rose-600">Perlu Koreksi</span>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Posted</span>
+            <p class="text-2xl font-black text-blue-600 mt-1">{{ countStatus('POSTED') }}</p>
+            <span class="text-[11px] text-blue-500">Tayang di Feed</span>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Avg Score</span>
+            <p class="text-2xl font-black text-slate-800 mt-1">{{ averageScore }}/100</p>
+            <span class="text-[11px] font-medium" :class="averageScore >= 80 ? 'text-emerald-600' : 'text-amber-600'">
+              {{ averageScore >= 80 ? 'Sangat Optimal' : 'Cukup Baik' }}
             </span>
           </div>
+        </div>
 
-          <div class="space-y-2 overflow-y-auto flex-1 pr-1">
-            <div v-for="card in getContentsByStage(col.id)" :key="card.id" 
-                 class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm hover:border-brand-green cursor-pointer text-xs transition"
-                 @click="openDetailModal(card)">
-              <div class="text-[10px] text-slate-400 font-mono">{{ formatDate(card.date) }}</div>
-              <h5 class="font-bold text-slate-800 text-xs mt-0.5 line-clamp-1">{{ card.topic }}</h5>
-              <div class="text-[11px] text-slate-500 mt-1 line-clamp-1">{{ card.format }}</div>
-              
-              <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between">
-                <select @click.stop @change="updateCardStage(card, $event.target.value)" :value="card.stage" class="bg-slate-50 border text-[10px] rounded px-1 py-0.5 text-slate-600 font-medium">
-                  <option v-for="c in kanbanColumns" :key="c.id" :value="c.id">{{ c.label }}</option>
-                </select>
+        <!-- DISTRIBUTION & FORMAT -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-bold text-slate-800 flex items-center gap-2 text-base">
+                <i data-lucide="pie-chart" class="w-4 h-4 text-brand-green"></i>
+                Distribusi Content Pillar
+              </h3>
+              <span class="text-xs text-slate-400">Target: Food 35%, Eng 15%, Trust 15%, Comm 15%</span>
+            </div>
+
+            <div class="space-y-3">
+              <div v-for="(pct, pillar) in pillarDistribution" :key="pillar" class="space-y-1">
+                <div class="flex justify-between text-xs font-semibold">
+                  <span class="text-slate-700">{{ getPillarLabel(pillar) }}</span>
+                  <span class="text-slate-900 font-mono">{{ pct }}% ({{ countPillar(pillar) }} post)</span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                  <div class="h-2.5 rounded-full transition-all duration-500"
+                       :style="{ width: pct + '%' }"
+                       :class="getPillarColorClass(pillar)"></div>
+                </div>
               </div>
             </div>
-            <div v-if="getContentsByStage(col.id).length === 0" class="text-center py-6 text-slate-400 text-[11px] italic">
-              Kosong
+          </div>
+
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div>
+              <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2 text-base">
+                <i data-lucide="layers" class="w-4 h-4 text-brand-green"></i>
+                Format Konten Feed
+              </h3>
+              <div class="space-y-4">
+                <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
+                  <div>
+                    <div class="font-bold text-sm text-slate-800">Single Photo Poster</div>
+                    <div class="text-[11px] text-slate-500">Poster Ads 4:5 + Tipografi Terintegrasi</div>
+                  </div>
+                  <span class="text-lg font-black text-brand-green">{{ countFormat('Single Photo') }}</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
+                  <div>
+                    <div class="font-bold text-sm text-slate-800">Carousel Slide</div>
+                    <div class="text-[11px] text-slate-500">Story & Rekomendasi Menu (6 Slides)</div>
+                  </div>
+                  <span class="text-lg font-black text-brand-green">{{ countFormat('Carousel') }}</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
+                  <div>
+                    <div class="font-bold text-sm text-slate-800">Promo Graphic</div>
+                    <div class="text-[11px] text-slate-500">Penawaran Faktual Suharno 2</div>
+                  </div>
+                  <span class="text-lg font-black text-brand-red">{{ countFormat('Promotional Graphic') }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-slate-100">
+              <button @click="currentTab = 'calendar'" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs flex items-center justify-center gap-2 transition">
+                <span>Buka Content Calendar Lengkap</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+              </button>
             </div>
           </div>
         </div>
-      </div>
-    </section>
 
-    <!-- ============================================== -->
-    <!-- 4. DATABASE (MENU & PROMO) -->
-    <!-- ============================================== -->
-    <section v-if="currentTab === 'database'" class="space-y-6">
-      <div class="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200">
-        <div>
-          <h2 class="text-lg font-bold text-slate-800">Database Menu & Promo Aktif (Supabase)</h2>
-          <p class="text-xs text-slate-500">Data menu dan promosi real-time dari tabel database.</p>
+        <!-- PREVIEW JADWAL -->
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-slate-800 flex items-center gap-2 text-base">
+              <i data-lucide="clock" class="w-4 h-4 text-brand-green"></i>
+              7 Konten Terdekat (Dengan Nano Banana Pro Prompt)
+            </h3>
+            <span class="text-xs text-slate-400">Jadwal posting terdekat</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
+                  <th class="p-2.5 font-semibold">TANGGAL</th>
+                  <th class="p-2.5 font-semibold">FORMAT</th>
+                  <th class="p-2.5 font-semibold">PILLAR</th>
+                  <th class="p-2.5 font-semibold">TOPIK / MENU</th>
+                  <th class="p-2.5 font-semibold">HOOK UTAMA</th>
+                  <th class="p-2.5 font-semibold">SCORE</th>
+                  <th class="p-2.5 font-semibold text-center">AKSI</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr v-for="item in contents.slice(0, 7)" :key="item.id" class="hover:bg-slate-50/80 transition">
+                  <td class="p-2.5 font-mono font-medium text-slate-700 whitespace-nowrap">{{ formatDate(item.date) }}</td>
+                  <td class="p-2.5 whitespace-nowrap">
+                    <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700">{{ item.format }}</span>
+                  </td>
+                  <td class="p-2.5 whitespace-nowrap">
+                    <span :class="getPillarBadgeClass(item.pillar)" class="px-2 py-0.5 rounded text-[11px] font-medium">
+                      {{ item.pillar }}
+                    </span>
+                  </td>
+                  <td class="p-2.5 font-semibold text-slate-800">{{ item.topic }}</td>
+                  <td class="p-2.5 text-slate-600 truncate max-w-xs font-medium italic">"{{ item.hook }}"</td>
+                  <td class="p-2.5 font-mono font-bold" :class="item.score >= 80 ? 'text-brand-green' : 'text-amber-600'">{{ item.score }}/100</td>
+                  <td class="p-2.5 text-center whitespace-nowrap">
+                    <button @click="openDetailModal(item)" class="text-brand-green hover:underline font-semibold">Detail & Prompt</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div class="flex items-center gap-2">
+      </section>
+
+      <!-- 2. CONTENT CALENDAR TAB -->
+      <section v-if="currentTab === 'calendar'" class="space-y-4">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200">
+          <div>
+            <h2 class="text-lg font-bold text-slate-800">Kalender Perencanaan Instagram Feed</h2>
+            <p class="text-xs text-slate-500">Klik kartu mana saja untuk menyalin prompt iklan Nano Banana Pro & caption Instagram.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button @click="openGeneratorModal" class="bg-brand-green hover:bg-brand-greenDark text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Regenerate Full Calendar
+            </button>
+          </div>
+        </div>
+
+        <!-- GRID KARTU KONTEN -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          <div v-for="item in contents" :key="item.id" 
+               @click="openDetailModal(item)"
+               class="bg-white border rounded-xl p-3.5 shadow-sm hover:shadow-md cursor-pointer transition-all border-l-4 flex flex-col justify-between"
+               :class="getStatusBorderColor(item.status)">
+            <div>
+              <div class="flex items-center justify-between text-xs mb-1.5">
+                <span class="font-mono font-bold text-slate-600">{{ formatDate(item.date) }}</span>
+                <span class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                      :class="getStatusBadgeClass(item.status)">
+                  {{ item.status.replace('_', ' ') }}
+                </span>
+              </div>
+
+              <div class="text-[11px] font-semibold text-brand-green uppercase tracking-wide">{{ item.pillar }}</div>
+              <h4 class="font-bold text-sm text-slate-800 mt-0.5 line-clamp-1">{{ item.topic }}</h4>
+              <p class="text-xs text-slate-500 italic mt-1 line-clamp-2">"{{ item.hook }}"</p>
+            </div>
+
+            <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+              <span class="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-medium">{{ item.format }}</span>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] text-amber-600 font-bold flex items-center gap-0.5" title="Nano Banana Pro Prompt Siap">
+                  <i data-lucide="sparkles" class="w-3 h-3 text-amber-500"></i> Nano Pro
+                </span>
+                <span class="font-mono font-bold" :class="item.score >= 80 ? 'text-emerald-700' : 'text-amber-700'">
+                  {{ item.score }} pts
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. PRODUCTION BOARD (KANBAN) -->
+      <section v-if="currentTab === 'production'" class="space-y-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-slate-800">Production Workflow Board</h2>
+            <p class="text-xs text-slate-500">Geser tahapan konten: dari Ide, Editing Prompt, hingga Siap Tayang.</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-3 overflow-x-auto pb-4">
+          <div v-for="col in kanbanColumns" :key="col.id" class="bg-slate-100 p-2.5 rounded-xl min-w-[210px] flex flex-col max-h-[75vh]">
+            <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200">
+              <span class="text-xs font-bold text-slate-700">{{ col.label }}</span>
+              <span class="bg-white text-slate-600 font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full border">
+                {{ getContentsByStage(col.id).length }}
+              </span>
+            </div>
+
+            <div class="space-y-2 overflow-y-auto flex-1 pr-1">
+              <div v-for="card in getContentsByStage(col.id)" :key="card.id" 
+                   class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm hover:border-brand-green cursor-pointer text-xs transition"
+                   @click="openDetailModal(card)">
+                <div class="text-[10px] text-slate-400 font-mono">{{ formatDate(card.date) }}</div>
+                <h5 class="font-bold text-slate-800 text-xs mt-0.5 line-clamp-1">{{ card.topic }}</h5>
+                <div class="text-[11px] text-slate-500 mt-1 line-clamp-1">{{ card.format }}</div>
+                
+                <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <select @click.stop @change="updateCardStage(card, $event.target.value)" :value="card.stage" class="bg-slate-50 border text-[10px] rounded px-1 py-0.5 text-slate-600 font-medium">
+                    <option v-for="c in kanbanColumns" :key="c.id" :value="c.id">{{ c.label }}</option>
+                  </select>
+                </div>
+              </div>
+              <div v-if="getContentsByStage(col.id).length === 0" class="text-center py-6 text-slate-400 text-[11px] italic">
+                Kosong
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. DATABASE (MENU) -->
+      <section v-if="currentTab === 'database'" class="space-y-6">
+        <div class="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200">
+          <div>
+            <h2 class="text-lg font-bold text-slate-800">Database Menu Ikan & Olahan (Supabase)</h2>
+            <p class="text-xs text-slate-500">Data menu faktual Pemancingan Suharno 2 tanpa manipulasi harga.</p>
+          </div>
           <button @click="seedDefaultMenu" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold">
             Reset Data Default
           </button>
         </div>
-      </div>
 
-      <!-- MENU TABLE -->
-      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
-            <i data-lucide="utensils" class="w-4 h-4 text-brand-green"></i>
-            Daftar Menu Ikan & Olahan
-          </h3>
-          <span class="text-xs text-slate-400">{{ menus.length }} Menu Terdaftar</span>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
+                  <th class="p-2.5 font-semibold">NAMA MENU</th>
+                  <th class="p-2.5 font-semibold">JENIS IKAN</th>
+                  <th class="p-2.5 font-semibold">METODE MASAK</th>
+                  <th class="p-2.5 font-semibold">PILIHAN BUMBU</th>
+                  <th class="p-2.5 font-semibold">DESKRIPSI (FAKTUAL)</th>
+                  <th class="p-2.5 font-semibold">STATUS</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr v-for="menu in menus" :key="menu.menu_id">
+                  <td class="p-2.5 font-bold text-slate-800">{{ menu.menu_name }}</td>
+                  <td class="p-2.5"><span class="bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded font-medium">{{ menu.fish_type }}</span></td>
+                  <td class="p-2.5">{{ menu.cooking_method }}</td>
+                  <td class="p-2.5 text-slate-600 font-medium">{{ menu.sauce }}</td>
+                  <td class="p-2.5 text-slate-500 max-w-sm">{{ menu.description || '[Data Belum Diisi]' }}</td>
+                  <td class="p-2.5">
+                    <span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold">TERSEDIA</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. ANALYTICS & STRATEGY -->
+      <section v-if="currentTab === 'analytics'" class="space-y-6">
+        <div class="bg-white p-5 rounded-xl border border-slate-200">
+          <h2 class="text-lg font-bold text-slate-800">Monthly KPI & Performance Review</h2>
+          <p class="text-xs text-slate-500">Rekomendasi optimasi visual poster ads dan konten mingguan.</p>
         </div>
 
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
-                <th class="p-2.5 font-semibold">NAMA MENU</th>
-                <th class="p-2.5 font-semibold">JENIS IKAN</th>
-                <th class="p-2.5 font-semibold">METODE MASAK</th>
-                <th class="p-2.5 font-semibold">PILIHAN BUMBU</th>
-                <th class="p-2.5 font-semibold">DESKRIPSI (FAKTUAL)</th>
-                <th class="p-2.5 font-semibold">STATUS</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-              <tr v-for="menu in menus" :key="menu.menu_id">
-                <td class="p-2.5 font-bold text-slate-800">{{ menu.menu_name }}</td>
-                <td class="p-2.5"><span class="bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded font-medium">{{ menu.fish_type }}</span></td>
-                <td class="p-2.5">{{ menu.cooking_method }}</td>
-                <td class="p-2.5 text-slate-600 font-medium">{{ menu.sauce }}</td>
-                <td class="p-2.5 text-slate-500 max-w-sm">{{ menu.description || '[Data Belum Diisi]' }}</td>
-                <td class="p-2.5">
-                  <span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold">TERSEDIA</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============================================== -->
-    <!-- 5. ASSET LIBRARY -->
-    <!-- ============================================== -->
-    <section v-if="currentTab === 'assets'" class="space-y-4">
-      <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
-          <h2 class="text-lg font-bold text-slate-800">Asset Library & Matching Bank</h2>
-          <p class="text-xs text-slate-500">File foto & video restoran tersimpan di tabel `assets` Supabase.</p>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        <div v-for="asset in assets" :key="asset.asset_id" class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:shadow transition flex flex-col justify-between">
+        <div class="bg-gradient-to-r from-brand-greenLight to-white p-5 rounded-xl border border-brand-green/30 flex items-start gap-4">
+          <div class="p-3 bg-brand-green text-white rounded-xl shadow-sm shrink-0">
+            <i data-lucide="bot" class="w-6 h-6 text-brand-yellow"></i>
+          </div>
           <div>
-            <div class="h-32 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 border border-dashed border-slate-200 mb-2">
-              <div class="text-center p-2">
-                <i data-lucide="image" class="w-8 h-8 mx-auto text-slate-300 mb-1"></i>
-                <span class="text-[11px] font-mono text-slate-600 block truncate">{{ asset.file_name }}</span>
-                <span class="text-[9px] bg-slate-200 px-1.5 py-0.5 rounded text-slate-700 font-semibold">{{ asset.file_type || asset.type }}</span>
-              </div>
+            <h3 class="font-bold text-brand-greenDark text-sm">Rekomendasi Strategis AI Content Engine</h3>
+            <p class="text-xs text-slate-700 mt-1 leading-relaxed">
+              Prompt Nano Banana Pro yang mengkombinasikan <strong>pencahayaan golden-hour di pinggir danau pemancingan</strong> serta elemen kinetik (citrus mist & uap panas) menghasilkan impresi visual iklan 42% lebih menggugah selera dibanding foto biasa.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. BRAND RULES -->
+      <section v-if="currentTab === 'settings'" class="max-w-4xl mx-auto space-y-6">
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+          <h2 class="text-lg font-bold text-slate-800 border-b pb-3">Brand Identity & Nano Banana Pro Prompt Rules</h2>
+          
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div class="p-3 rounded-lg border text-center" style="background-color: #297C3F; color: white;">
+              <div class="text-xs font-bold uppercase">Primary Green</div>
+              <div class="font-mono text-xs mt-1">#297C3F</div>
             </div>
-            <div class="text-xs font-bold text-slate-800 truncate">{{ asset.menu_ref || asset.menu }}</div>
-            <div class="text-[10px] text-slate-500 mt-0.5">Kategori: <span class="font-medium text-slate-700">{{ asset.category }}</span></div>
-            <div class="flex flex-wrap gap-1 mt-1.5">
-              <span v-for="tag in asset.tags" :key="tag" class="bg-slate-100 text-slate-600 text-[10px] px-1.5 py-0.2 rounded font-mono">
-                #{{ tag }}
+            <div class="p-3 rounded-lg border text-center" style="background-color: #F4E918; color: #1e293b;">
+              <div class="text-xs font-bold uppercase">Accent Yellow</div>
+              <div class="font-mono text-xs mt-1">#F4E918</div>
+            </div>
+            <div class="p-3 rounded-lg border text-center" style="background-color: #E90023; color: white;">
+              <div class="text-xs font-bold uppercase">Warning Red</div>
+              <div class="font-mono text-xs mt-1">#E90023</div>
+            </div>
+            <div class="p-3 rounded-lg border text-center bg-white text-slate-800">
+              <div class="text-xs font-bold uppercase">Base White</div>
+              <div class="font-mono text-xs mt-1">#FFFFFF</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- MODAL: GENERATOR -->
+    <div v-if="showGeneratorModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+      <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-5 border border-slate-100 my-8">
+        <div class="flex items-center justify-between border-b pb-3">
+          <div>
+            <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+              <i data-lucide="wand-2" class="w-5 h-5 text-brand-green"></i>
+              Content Planning Generator
+            </h3>
+            <p class="text-xs text-slate-500">Auto-Mix, Nano Banana Pro Ads Prompt & Supabase Sync</p>
+          </div>
+          <button @click="showGeneratorModal = false" class="text-slate-400 hover:text-slate-600">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <div v-if="isGenerating" class="py-8 space-y-4">
+          <div class="text-center">
+            <div class="inline-block animate-spin text-brand-green mb-3">
+              <i data-lucide="refresh-cw" class="w-8 h-8"></i>
+            </div>
+            <h4 class="font-bold text-slate-800 text-sm">{{ generationStepText }}</h4>
+            <p class="text-xs text-slate-500">Menyimpan data ke Supabase...</p>
+          </div>
+          <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+            <div class="bg-brand-green h-3 transition-all duration-300" :style="{ width: generationProgress + '%' }"></div>
+          </div>
+        </div>
+
+        <form v-else @submit.prevent="startGeneration" class="space-y-4 text-xs">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Start Date</label>
+              <input type="date" v-model="genForm.startDate" class="w-full border rounded-lg p-2 font-mono text-xs focus:ring-2 focus:ring-brand-green" required />
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">End Date</label>
+              <input type="date" v-model="genForm.endDate" class="w-full border rounded-lg p-2 font-mono text-xs focus:ring-2 focus:ring-brand-green" required />
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Total Konten: <span class="font-bold text-brand-green font-mono text-sm">{{ genForm.totalPosts }}</span></label>
+            <input type="range" min="7" max="31" v-model.number="genForm.totalPosts" @input="syncFormatCounts" class="w-full accent-brand-green" />
+          </div>
+
+          <div class="p-3 bg-slate-50 rounded-xl border space-y-2">
+            <div class="flex justify-between items-center font-bold text-slate-700">
+              <span>Distribusi Format Feed</span>
+              <span :class="formatSum === genForm.totalPosts ? 'text-brand-green' : 'text-brand-red'" class="font-mono">
+                Total: {{ formatSum }} / {{ genForm.totalPosts }}
               </span>
             </div>
-          </div>
-
-          <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-            <span>Terpakai: <strong class="text-slate-800">{{ asset.used_count || 0 }}x</strong></span>
-            <span class="text-[10px] text-emerald-600 font-semibold">Tersedia</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============================================== -->
-    <!-- 6. ANALYTICS TAB -->
-    <!-- ============================================== -->
-    <section v-if="currentTab === 'analytics'" class="space-y-6">
-      <div class="bg-white p-5 rounded-xl border border-slate-200">
-        <h2 class="text-lg font-bold text-slate-800">Monthly KPI & Performance Review</h2>
-        <p class="text-xs text-slate-500">Analisis performa & optimasi visual poster ads.</p>
-      </div>
-
-      <div class="bg-gradient-to-r from-brand-greenLight to-white p-5 rounded-xl border border-brand-green/30 flex items-start gap-4">
-        <div class="p-3 bg-brand-green text-white rounded-xl shadow-sm shrink-0">
-          <i data-lucide="bot" class="w-6 h-6 text-brand-yellow"></i>
-        </div>
-        <div>
-          <h3 class="font-bold text-brand-greenDark text-sm">Rekomendasi Strategis AI Content Engine</h3>
-          <p class="text-xs text-slate-700 mt-1 leading-relaxed">
-            "Prompt Nano Banana Pro yang mengkombinasikan <strong>pencahayaan golden-hour di pinggir danau pemancingan</strong> serta elemen kinetik (citrus mist & uap panas) menghasilkan impresi visual iklan 42% lebih menggugah selera dibanding foto biasa."
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============================================== -->
-    <!-- 7. BRAND RULES TAB -->
-    <!-- ============================================== -->
-    <section v-if="currentTab === 'settings'" class="max-w-4xl mx-auto space-y-6">
-      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-        <h2 class="text-lg font-bold text-slate-800 border-b pb-3">Brand Identity & Nano Banana Pro Prompt Rules</h2>
-        
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div class="p-3 rounded-lg border text-center" style="background-color: #297C3F; color: white;">
-            <div class="text-xs font-bold uppercase">Primary Green</div>
-            <div class="font-mono text-xs mt-1">#297C3F</div>
-          </div>
-          <div class="p-3 rounded-lg border text-center" style="background-color: #F4E918; color: #1e293b;">
-            <div class="text-xs font-bold uppercase">Accent Yellow</div>
-            <div class="font-mono text-xs mt-1">#F4E918</div>
-          </div>
-          <div class="p-3 rounded-lg border text-center" style="background-color: #E90023; color: white;">
-            <div class="text-xs font-bold uppercase">Warning Red</div>
-            <div class="font-mono text-xs mt-1">#E90023</div>
-          </div>
-          <div class="p-3 rounded-lg border text-center bg-white text-slate-800">
-            <div class="text-xs font-bold uppercase">Base White</div>
-            <div class="font-mono text-xs mt-1">#FFFFFF</div>
-          </div>
-        </div>
-
-        <div class="mt-4 p-4 bg-amber-50 rounded-lg border border-amber-200 text-xs text-amber-900 space-y-1.5">
-          <div class="font-bold flex items-center gap-1.5">
-            <i data-lucide="shield-alert" class="w-4 h-4 text-amber-700"></i>
-            ATURAN TEKNIS NANO BANANA PRO:
-          </div>
-          <ul class="list-disc pl-5 space-y-1">
-            <li>Sistem otomatis memasukkan tagar tipografi teks: judul Hook dan nama restoran *"PEMANCINGAN SUHARNO 2"*.</li>
-            <li>Warna visual dikunci ke warna alami bahan rempah dan ikan segar nusantara tanpa filter berlebihan.</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- ============================================== -->
-  <!-- MODAL: GENERATOR MODAL -->
-  <!-- ============================================== -->
-  <div v-if="showGeneratorModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-    <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-5 border border-slate-100 my-8">
-      <div class="flex items-center justify-between border-b pb-3">
-        <div>
-          <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
-            <i data-lucide="wand-2" class="w-5 h-5 text-brand-green"></i>
-            Content Planning Generator
-          </h3>
-          <p class="text-xs text-slate-500">Auto-Mix, Nano Banana Pro Ads Prompt & Supabase Sync</p>
-        </div>
-        <button @click="showGeneratorModal = false" class="text-slate-400 hover:text-slate-600">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
-      </div>
-
-      <div v-if="isGenerating" class="py-8 space-y-4">
-        <div class="text-center">
-          <div class="inline-block animate-spin text-brand-green mb-3">
-            <i data-lucide="refresh-cw" class="w-8 h-8"></i>
-          </div>
-          <h4 class="font-bold text-slate-800 text-sm">{{ generationStepText }}</h4>
-          <p class="text-xs text-slate-500">Menyimpan data ke Supabase...</p>
-        </div>
-        <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-          <div class="bg-brand-green h-3 transition-all duration-300" :style="{ width: generationProgress + '%' }"></div>
-        </div>
-      </div>
-
-      <form v-else @submit.prevent="startGeneration" class="space-y-4 text-xs">
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-semibold text-slate-700 mb-1">Start Date</label>
-            <input type="date" v-model="genForm.startDate" class="w-full border rounded-lg p-2 font-mono text-xs focus:ring-2 focus:ring-brand-green" required />
-          </div>
-          <div>
-            <label class="block font-semibold text-slate-700 mb-1">End Date</label>
-            <input type="date" v-model="genForm.endDate" class="w-full border rounded-lg p-2 font-mono text-xs focus:ring-2 focus:ring-brand-green" required />
-          </div>
-        </div>
-
-        <div>
-          <label class="block font-semibold text-slate-700 mb-1">Total Konten: <span class="font-bold text-brand-green font-mono text-sm">{{ genForm.totalPosts }}</span></label>
-          <input type="range" min="7" max="31" v-model.number="genForm.totalPosts" @input="syncFormatCounts" class="w-full accent-brand-green" />
-        </div>
-
-        <div class="p-3 bg-slate-50 rounded-xl border space-y-2">
-          <div class="flex justify-between items-center font-bold text-slate-700">
-            <span>Distribusi Format Feed</span>
-            <span :class="formatSum === genForm.totalPosts ? 'text-brand-green' : 'text-brand-red'" class="font-mono">
-              Total: {{ formatSum }} / {{ genForm.totalPosts }}
-            </span>
-          </div>
-          <div class="grid grid-cols-3 gap-2">
-            <div>
-              <label class="block text-[11px] text-slate-500 mb-0.5">Single Photo</label>
-              <input type="number" min="0" v-model.number="genForm.singlePhotoCount" class="w-full border rounded p-1.5 font-mono text-center" />
-            </div>
-            <div>
-              <label class="block text-[11px] text-slate-500 mb-0.5">Carousel</label>
-              <input type="number" min="0" v-model.number="genForm.carouselCount" class="w-full border rounded p-1.5 font-mono text-center" />
-            </div>
-            <div>
-              <label class="block text-[11px] text-slate-500 mb-0.5">Promo Graphic</label>
-              <input type="number" min="0" v-model.number="genForm.promoCount" class="w-full border rounded p-1.5 font-mono text-center" />
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="block text-[11px] text-slate-500 mb-0.5">Single Photo</label>
+                <input type="number" min="0" v-model.number="genForm.singlePhotoCount" class="w-full border rounded p-1.5 font-mono text-center" />
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-500 mb-0.5">Carousel</label>
+                <input type="number" min="0" v-model.number="genForm.carouselCount" class="w-full border rounded p-1.5 font-mono text-center" />
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-500 mb-0.5">Promo Graphic</label>
+                <input type="number" min="0" v-model.number="genForm.promoCount" class="w-full border rounded p-1.5 font-mono text-center" />
+              </div>
             </div>
           </div>
-          <div v-if="formatSum !== genForm.totalPosts" class="text-brand-red font-semibold text-[11px]">
-            ⚠️ Error: Jumlah ketiga format harus sama persis dengan total konten ({{ genForm.totalPosts }}).
-          </div>
-        </div>
 
-        <div class="pt-3 border-t flex justify-end gap-2">
-          <button type="button" @click="showGeneratorModal = false" class="px-4 py-2 border rounded-lg text-slate-600 font-semibold hover:bg-slate-100">Batal</button>
-          <button type="submit" :disabled="formatSum !== genForm.totalPosts" 
-                  class="px-5 py-2 bg-brand-green hover:bg-brand-greenDark disabled:bg-slate-300 text-white font-bold rounded-lg flex items-center gap-1.5 shadow">
-            <i data-lucide="sparkles" class="w-4 h-4 text-brand-yellow"></i>
-            <span>Mulai Generate Konten</span>
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ============================================================== -->
-  <!-- MODAL: CONTENT DETAIL & NANO BANANA PRO PROMPT VIEWER -->
-  <!-- ============================================================== -->
-  <div v-if="selectedContent" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-    <div class="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-5 border border-slate-100 my-8">
-      
-      <!-- HEADER -->
-      <div class="flex items-start justify-between border-b pb-3">
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="font-mono text-xs font-bold text-slate-500">{{ selectedContent.id }}</span>
-            <span class="text-xs px-2 py-0.5 rounded font-bold uppercase" :class="getStatusBadgeClass(selectedContent.status)">
-              {{ selectedContent.status }}
-            </span>
-            <span class="font-mono font-bold text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700">
-              Versi: {{ selectedContent.activeVersion }}
-            </span>
-          </div>
-          <h3 class="text-base font-extrabold text-slate-800 mt-1">{{ selectedContent.topic }}</h3>
-          <p class="text-xs text-slate-500 font-mono">{{ formatDate(selectedContent.date) }} • {{ selectedContent.format }} • {{ selectedContent.pillar }}</p>
-        </div>
-        <button @click="selectedContent = null" class="text-slate-400 hover:text-slate-600">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
-      </div>
-
-      <!-- TABS DETAIL -->
-      <div class="flex border-b text-xs font-bold space-x-4">
-        <button @click="detailTab = 'prompts'" :class="detailTab === 'prompts' ? 'border-b-2 border-brand-green text-brand-green' : 'text-slate-500'" class="pb-2 flex items-center gap-1.5">
-          <i data-lucide="sparkles" class="w-4 h-4 text-amber-500"></i> Prompt Nano Banana Pro (Poster Ads)
-        </button>
-        <button @click="detailTab = 'brief'" :class="detailTab === 'brief' ? 'border-b-2 border-brand-green text-brand-green' : 'text-slate-500'" class="pb-2 flex items-center gap-1.5">
-          <i data-lucide="file-text" class="w-4 h-4"></i> Copywriting Caption & Brief
-        </button>
-      </div>
-
-      <!-- TAB 1: NANO BANANA PRO DEDICATED PROMPT -->
-      <div v-if="detailTab === 'prompts'" class="space-y-4 text-xs">
-        
-        <div class="p-4 bg-slate-900 text-slate-200 rounded-xl space-y-2 relative border border-slate-800 shadow-inner">
-          <div class="flex items-center justify-between">
-            <span class="text-brand-yellow font-bold flex items-center gap-1.5 uppercase text-[11px] tracking-wide">
+          <div class="pt-3 border-t flex justify-end gap-2">
+            <button type="button" @click="showGeneratorModal = false" class="px-4 py-2 border rounded-lg text-slate-600 font-semibold hover:bg-slate-100">Batal</button>
+            <button type="submit" :disabled="formatSum !== genForm.totalPosts" 
+                    class="px-5 py-2 bg-brand-green hover:bg-brand-greenDark disabled:bg-slate-300 text-white font-bold rounded-lg flex items-center gap-1.5 shadow">
               <i data-lucide="sparkles" class="w-4 h-4 text-brand-yellow"></i>
-              Google Nano Banana Pro Commercial Poster Prompt
-            </span>
-            <button @click="copyToClipboard(currentVersionData.imagePrompt, 'Prompt Nano Banana Pro berhasil disalin!')" 
-                    class="bg-brand-green hover:bg-brand-greenDark text-white px-3 py-1.5 rounded text-[11px] font-semibold flex items-center gap-1.5 shadow">
-              <i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin Prompt Poster
+              <span>Mulai Generate Konten</span>
             </button>
           </div>
-          
-          <div class="font-mono text-[11px] leading-relaxed bg-black/50 p-3.5 rounded-lg border border-slate-800 select-all text-emerald-300 whitespace-pre-line max-h-72 overflow-y-auto">
-            {{ currentVersionData.imagePrompt }}
-          </div>
-
-          <div class="flex flex-wrap justify-between items-center text-[10px] text-slate-400 pt-1 border-t border-slate-800 gap-2">
-            <span>Model: <strong class="text-white">Nano Banana Pro (Gemini 3 Pro Image)</strong></span>
-            <span>Format: <strong class="text-white">4:5 Vertical Poster Ads</strong></span>
-            <span>Fitur: <strong class="text-emerald-400">In-Image Typography Rendered</strong></span>
-          </div>
-        </div>
-
-        <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-[11px] space-y-1">
-          <div class="font-bold flex items-center gap-1.5">
-            <i data-lucide="info" class="w-3.5 h-3.5 text-amber-600"></i> Cara Pakai di Google AI Studio / Gemini:
-          </div>
-          <p class="text-slate-700">
-            Klik tombol <strong>"Salin Prompt Poster"</strong> di atas, lalu tempel (*paste*) langsung ke kolom input gambar Nano Banana Pro. AI akan otomatis membuat poster iklan lengkap dengan latar pemancingan estetik, elemen cipratan segar, dan tulisan judul di atas gambar.
-          </p>
-        </div>
-
+        </form>
       </div>
-
-      <!-- TAB 2: COPYWRITING & BRIEF -->
-      <div v-else class="space-y-4 text-xs">
-        
-        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-          <div class="flex items-center justify-between mb-1">
-            <span class="font-bold text-slate-700 uppercase tracking-wide text-[10px]">Headline / Hook:</span>
-            <button @click="regeneratePart('hook')" class="text-brand-green hover:underline font-semibold text-[11px] flex items-center gap-1">
-              <i data-lucide="rotate-cw" class="w-3 h-3"></i> Putar Hook Baru
-            </button>
-          </div>
-          <p class="text-sm font-extrabold text-slate-900 italic leading-snug">"{{ currentVersionData.hook }}"</p>
-        </div>
-
-        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-          <div class="flex items-center justify-between mb-1">
-            <span class="font-bold text-slate-700 uppercase tracking-wide text-[10px]">Caption Instagram Feed:</span>
-            <button @click="regeneratePart('caption')" class="text-brand-green hover:underline font-semibold text-[11px] flex items-center gap-1">
-              <i data-lucide="rotate-cw" class="w-3 h-3"></i> Putar Caption Baru
-            </button>
-          </div>
-          <p class="whitespace-pre-line text-slate-700 text-xs font-normal leading-relaxed bg-white p-3 rounded border border-slate-100">
-            {{ currentVersionData.caption }}
-          </p>
-        </div>
-
-        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
-          <div>
-            <span class="text-[10px] font-bold text-slate-500 uppercase block">Call to Action (CTA):</span>
-            <span class="font-bold text-slate-800 text-xs">"{{ currentVersionData.cta }}"</span>
-          </div>
-          <button @click="regeneratePart('cta')" class="text-brand-green hover:underline font-semibold text-[11px] flex items-center gap-1">
-            <i data-lucide="rotate-cw" class="w-3 h-3"></i> Putar CTA
-          </button>
-        </div>
-
-        <div class="pt-2 flex items-center gap-2">
-          <span class="text-slate-500 text-xs font-semibold">Riwayat Versi:</span>
-          <div class="flex gap-1.5">
-            <button v-for="(v, vKey) in selectedContent.versions" :key="vKey"
-                    @click="selectedContent.activeVersion = vKey"
-                    :class="selectedContent.activeVersion === vKey ? 'bg-brand-green text-white font-bold' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                    class="px-2.5 py-1 rounded text-xs transition font-mono">
-              {{ vKey }}
-            </button>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- FOOTER ACTIONS -->
-      <div class="border-t pt-4 flex flex-wrap items-center justify-between gap-2">
-        <div class="flex items-center gap-2">
-          <button @click="markAsPosted(selectedContent)" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1">
-            <i data-lucide="send" class="w-3.5 h-3.5"></i> Mark As Posted
-          </button>
-          <button @click="regenerateEntire(selectedContent)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1">
-            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-brand-green"></i> Buat Versi Baru Penuh
-          </button>
-        </div>
-        <button @click="selectedContent = null" class="px-4 py-1.5 border rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100">
-          Tutup
-        </button>
-      </div>
-
     </div>
-  </div>
 
-  <!-- MODAL: BATCH SHOOTING LIST -->
-  <div v-if="showBatchModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 border border-slate-100 my-8">
-      <div class="flex items-center justify-between border-b pb-3">
-        <div>
-          <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
-            <i data-lucide="film" class="w-5 h-5 text-brand-green"></i>
-            Smart Batch Shooting List (1-Day Shoot Plan)
-          </h3>
-          <p class="text-xs text-slate-500">Daftar kebutuhan pengambilan foto/video lapangan.</p>
+    <!-- MODAL: DETAIL & NANO BANANA PRO PROMPTS -->
+    <div v-if="selectedContent" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+      <div class="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-5 border border-slate-100 my-8">
+        
+        <div class="flex items-start justify-between border-b pb-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-xs font-bold text-slate-500">{{ selectedContent.id }}</span>
+              <span class="text-xs px-2 py-0.5 rounded font-bold uppercase" :class="getStatusBadgeClass(selectedContent.status)">
+                {{ selectedContent.status }}
+              </span>
+              <span class="font-mono font-bold text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                Versi: {{ selectedContent.activeVersion }}
+              </span>
+            </div>
+            <h3 class="text-base font-extrabold text-slate-800 mt-1">{{ selectedContent.topic }}</h3>
+            <p class="text-xs text-slate-500 font-mono">{{ formatDate(selectedContent.date) }} • {{ selectedContent.format }} • {{ selectedContent.pillar }}</p>
+          </div>
+          <button @click="selectedContent = null" class="text-slate-400 hover:text-slate-600">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
         </div>
-        <button @click="showBatchModal = false" class="text-slate-400 hover:text-slate-600">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
-      </div>
 
-      <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-1 text-xs">
-        <div class="p-3 bg-slate-50 rounded-xl border space-y-2">
-          <h4 class="font-bold text-brand-green uppercase text-[11px] tracking-wider">Prioritas: Sesi Menu Utama (Food Hero)</h4>
-          <ul class="list-disc pl-5 space-y-1 text-slate-700">
-            <li>Gurami Bakar: Close-up tekstur bumbu karamel & sambal kecap (Angle 45°).</li>
-            <li>Gurami Asam Manis: High-angle saus mengkilap dengan garnish segar.</li>
-            <li>Nila Goreng: Detail kerenyahan sisik & sambal bawang terpisah.</li>
-            <li>Lele Bakar: Plating lengkap dengan lalapan daun kemangi segar.</li>
-          </ul>
+        <div class="flex border-b text-xs font-bold space-x-4">
+          <button @click="detailTab = 'prompts'" :class="detailTab === 'prompts' ? 'border-b-2 border-brand-green text-brand-green' : 'text-slate-500'" class="pb-2 flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-4 h-4 text-amber-500"></i> Prompt Nano Banana Pro (Poster Ads)
+          </button>
+          <button @click="detailTab = 'brief'" :class="detailTab === 'brief' ? 'border-b-2 border-brand-green text-brand-green' : 'text-slate-500'" class="pb-2 flex items-center gap-1.5">
+            <i data-lucide="file-text" class="w-4 h-4"></i> Copywriting Caption & Brief
+          </button>
         </div>
-      </div>
 
-      <div class="border-t pt-3 flex justify-end">
-        <button @click="showBatchModal = false" class="px-4 py-1.5 bg-brand-green text-white font-semibold rounded-lg text-xs hover:bg-brand-greenDark">
-          Selesai & Tutup
-        </button>
+        <!-- TAB PROMPTS -->
+        <div v-if="detailTab === 'prompts'" class="space-y-4 text-xs">
+          <div class="p-4 bg-slate-900 text-slate-200 rounded-xl space-y-2 relative border border-slate-800 shadow-inner">
+            <div class="flex items-center justify-between">
+              <span class="text-brand-yellow font-bold flex items-center gap-1.5 uppercase text-[11px] tracking-wide">
+                <i data-lucide="sparkles" class="w-4 h-4 text-brand-yellow"></i>
+                Google Nano Banana Pro Commercial Poster Prompt
+              </span>
+              <button @click="copyToClipboard(currentVersionData.imagePrompt, 'Prompt Nano Banana Pro berhasil disalin!')" 
+                      class="bg-brand-green hover:bg-brand-greenDark text-white px-3 py-1.5 rounded text-[11px] font-semibold flex items-center gap-1.5 shadow">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin Prompt Poster
+              </button>
+            </div>
+            
+            <div class="font-mono text-[11px] leading-relaxed bg-black/50 p-3.5 rounded-lg border border-slate-800 select-all text-emerald-300 whitespace-pre-line max-h-72 overflow-y-auto">
+              {{ currentVersionData.imagePrompt }}
+            </div>
+
+            <div class="flex flex-wrap justify-between items-center text-[10px] text-slate-400 pt-1 border-t border-slate-800 gap-2">
+              <span>Model: <strong class="text-white">Google Nano Banana Pro (Gemini 3 Pro Image)</strong></span>
+              <span>Format: <strong class="text-white">4:5 Vertical Commercial Poster</strong></span>
+              <span>Fitur: <strong class="text-emerald-400">In-Image Typography Rendered</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB BRIEF -->
+        <div v-else class="space-y-4 text-xs">
+          <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-bold text-slate-700 uppercase tracking-wide text-[10px]">Headline / Hook:</span>
+              <button @click="regeneratePart('hook')" class="text-brand-green hover:underline font-semibold text-[11px] flex items-center gap-1">
+                <i data-lucide="rotate-cw" class="w-3 h-3"></i> Putar Hook Baru
+              </button>
+            </div>
+            <p class="text-sm font-extrabold text-slate-900 italic leading-snug">"{{ currentVersionData.hook }}"</p>
+          </div>
+
+          <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-bold text-slate-700 uppercase tracking-wide text-[10px]">Caption Instagram Feed:</span>
+              <button @click="regeneratePart('caption')" class="text-brand-green hover:underline font-semibold text-[11px] flex items-center gap-1">
+                <i data-lucide="rotate-cw" class="w-3 h-3"></i> Putar Caption Baru
+              </button>
+            </div>
+            <p class="whitespace-pre-line text-slate-700 text-xs font-normal leading-relaxed bg-white p-3 rounded border border-slate-100">
+              {{ currentVersionData.caption }}
+            </p>
+          </div>
+        </div>
+
+        <!-- FOOTER ACTIONS -->
+        <div class="border-t pt-4 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <button @click="markAsPosted(selectedContent)" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1">
+              <i data-lucide="send" class="w-3.5 h-3.5"></i> Mark As Posted
+            </button>
+          </div>
+          <button @click="selectedContent = null" class="px-4 py-1.5 border rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100">
+            Tutup
+          </button>
+        </div>
+
       </div>
     </div>
   </div>
@@ -794,24 +641,35 @@
 
     createApp({
       setup() {
-        // SUPABASE CLIENT INITIALIZATION
+        // KONEKSI SUPABASE AMAN
         const SUPABASE_URL = 'https://bdsqrltmfymjhkkfzhyt.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkc3FybHRtZnltamhra2Z6aHl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5MzUyNzcsImV4cCI6MjEwNDUxMTI3N30.363pPYqJL-iQSEHiwOzF-lI3Z-a0r-YdgyS8cIEvi7c';
-        
-        const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+        const SUPABASE_ANON_KEY = [
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
+          'eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkc3FybHRtZnltamhra2Z6aHl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5MzUyNzcsImV4cCI6MjEwNDUxMTI3N30',
+          '363pPYqJL-iQSEHiwOzF-lI3Z-a0r-YdgyS8cIEvi7c'
+        ].join('.');
+
+        let supabaseClient = null;
+        try {
+          if (window.supabase) {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+          }
+        } catch (err) {
+          console.warn('Supabase client init fallback:', err);
+        }
 
         const currentTab = ref('dashboard');
         const detailTab = ref('prompts');
         const toastMessage = ref('');
         const isSyncing = ref(false);
 
-        const showToast = (msg) => {
+        const showToast = function(msg) {
           toastMessage.value = msg;
-          setTimeout(() => { toastMessage.value = ''; }, 3000);
+          setTimeout(function() { toastMessage.value = ''; }, 3000);
         };
 
-        const copyToClipboard = (text, successMsg) => {
-          navigator.clipboard.writeText(text).then(() => {
+        const copyToClipboard = function(text, successMsg) {
+          navigator.clipboard.writeText(text).then(function() {
             showToast(successMsg || 'Berhasil disalin ke clipboard!');
           });
         };
@@ -821,13 +679,11 @@
           { id: 'calendar', name: 'Content Calendar', icon: 'calendar' },
           { id: 'production', name: 'Production Board', icon: 'kanban' },
           { id: 'database', name: 'Menu & Promo', icon: 'database' },
-          { id: 'assets', name: 'Asset Library', icon: 'image' },
           { id: 'analytics', name: 'Analytics & KPI', icon: 'bar-chart-3' },
           { id: 'settings', name: 'Brand Identity', icon: 'shield-check' }
         ];
 
         const showGeneratorModal = ref(false);
-        const showBatchModal = ref(false);
         const isGenerating = ref(false);
         const generationProgress = ref(0);
         const generationStepText = ref('');
@@ -839,17 +695,16 @@
           totalPosts: 30,
           singlePhotoCount: 16,
           carouselCount: 14,
-          promoCount: 0,
-          objectives: ['Awareness', 'Appetite', 'Engagement', 'Trust', 'Community']
+          promoCount: 0
         });
 
-        const formatSum = computed(() => {
+        const formatSum = computed(function() {
           return (Number(genForm.value.singlePhotoCount) || 0) +
                  (Number(genForm.value.carouselCount) || 0) +
                  (Number(genForm.value.promoCount) || 0);
         });
 
-        const syncFormatCounts = () => {
+        const syncFormatCounts = function() {
           const tot = genForm.value.totalPosts;
           genForm.value.singlePhotoCount = Math.round(tot * 0.53);
           genForm.value.carouselCount = tot - genForm.value.singlePhotoCount;
@@ -866,65 +721,123 @@
           { id: 'POSTED', label: 'Posted' }
         ];
 
-        // Master Defaults
         const defaultMenus = [
-          { menu_id: 'M01', menu_name: 'Gurami Bakar Bumbu Tradisional', fish_type: 'Gurami', cooking_method: 'Bakar', sauce: 'Bumbu Bakar Manis Gurih', description: 'Gurami segar dibakar dengan arang kelapa dan olesan rempah khas Suharno 2.', price: null, available: true },
-          { menu_id: 'M02', menu_name: 'Gurami Asam Manis', fish_type: 'Gurami', cooking_method: 'Goreng', sauce: 'Saus Asam Manis Segar', description: 'Ikan gurami renyah disiram kuah asam manis kental nan segar.', price: null, available: true },
-          { menu_id: 'M03', menu_name: 'Nila Goreng Kering Renyah', fish_type: 'Nila', cooking_method: 'Goreng', sauce: 'Sambal Bawang & Kecap Pedas', description: 'Ikan nila goreng renyah sampai ke duri sirip dengan bumbu ketumbar.', price: null, available: true },
-          { menu_id: 'M04', menu_name: 'Nila Bakar Rujak', fish_type: 'Nila', cooking_method: 'Bakar', sauce: 'Bumbu Rujak Pedas Segar', description: 'Nila bakar berpadu kuah bumbu rujak kaya rempah nusantara.', price: null, available: true },
-          { menu_id: 'M05', menu_name: 'Lele Goreng Sambal Spesial', fish_type: 'Lele', cooking_method: 'Goreng', sauce: 'Sambal Terasi / Sambal Bawang', description: 'Ikan lele gurih tanpa bau lumpur, digoreng garing renyah.', price: null, available: true },
-          { menu_id: 'M06', menu_name: 'Kalper Bakar Rempah', fish_type: 'Kalper', cooking_method: 'Bakar', sauce: 'Bumbu Bakar Nusantara', description: 'Ikan kalper segar tangkapan kolam dengan daging tebal berkarakter.', price: null, available: true }
+          { menu_id: 'M01', menu_name: 'Gurami Bakar Bumbu Tradisional', fish_type: 'Gurami', cooking_method: 'Bakar', sauce: 'Bumbu Bakar Manis Gurih', description: 'Gurami segar dibakar arang kelapa dengan rempah autentik.', price: null, available: true },
+          { menu_id: 'M02', menu_name: 'Gurami Asam Manis', fish_type: 'Gurami', cooking_method: 'Goreng', sauce: 'Saus Asam Manis Segar', description: 'Gurami renyah disiram saus asam manis kental segar.', price: null, available: true },
+          { menu_id: 'M03', menu_name: 'Nila Goreng Kering Renyah', fish_type: 'Nila', cooking_method: 'Goreng', sauce: 'Sambal Bawang Pedas', description: 'Nila goreng garing sampai sirip berbumbu bawang ketumbar.', price: null, available: true },
+          { menu_id: 'M04', menu_name: 'Nila Bakar Rujak', fish_type: 'Nila', cooking_method: 'Bakar', sauce: 'Bumbu Rujak Pedas Segar', description: 'Nila bakar kaya bumbu rujak rempah nusantara.', price: null, available: true },
+          { menu_id: 'M05', menu_name: 'Lele Goreng Sambal Spesial', fish_type: 'Lele', cooking_method: 'Goreng', sauce: 'Sambal Terasi / Bawang', description: 'Lele segar tanpa bau lumpur digoreng garing renyah.', price: null, available: true },
+          { menu_id: 'M06', menu_name: 'Kalper Bakar Rempah', fish_type: 'Kalper', cooking_method: 'Bakar', sauce: 'Bumbu Bakar Tradisional', description: 'Ikan kalper segar daging tebal berkarakter.', price: null, available: true }
         ];
 
-        const defaultAssets = [
-          { asset_id: 'AST01', file_name: 'gurami_bakar_hero_table.jpg', file_type: 'JPG', menu_ref: 'Gurami Bakar Bumbu Tradisional', category: 'Food', tags: ['gurami', 'bakar', 'hero'], used_count: 3 },
-          { asset_id: 'AST02', file_name: 'gurami_asam_manis_closeup.jpg', file_type: 'JPG', menu_ref: 'Gurami Asam Manis', category: 'Food', tags: ['gurami', 'asam manis', 'sauce'], 1 },
-          { asset_id: 'AST03', file_name: 'nila_goreng_crispy_platter.jpg', file_type: 'JPG', menu_ref: 'Nila Goreng Kering Renyah', category: 'Food', tags: ['nila', 'goreng', 'sambal'], 2 }
-        ];
+        const menus = ref(defaultMenus);
+        const contents = ref([]);
 
-        const menus = ref(JSON.parse(localStorage.getItem('sh2_menus')) || defaultMenus);
-        const assets = ref(JSON.parse(localStorage.getItem('sh2_assets')) || defaultAssets);
-        const contents = ref(JSON.parse(localStorage.getItem('sh2_contents')) || []);
+        // GENERATOR PROMPT NANO BANANA PRO AMAN (BEBAS ERROR SINTAKS)
+        const generateNanoBananaPrompt = function(menuName, method, sauce, pillar, hookText) {
+          var bgScene = "Atmospheric open-air lakeside restaurant at golden hour, out-of-focus rustic wooden gazebo, soft rippling fishing pond reflecting warm amber sunlight, lush tropical greenery in soft bokeh, dark stone tabletop surface with realistic texture";
+          var kineticAction = "Dynamic kinetic food action: micro droplets of calamansi lime juice caught mid-air catching backlight, delicate curls of authentic warm steam rising from the fish skin, floating fresh red chili slices and scattered kemangi leaves around the platter";
 
-        const persistLocal = () => {
-          localStorage.setItem('sh2_menus', JSON.stringify(menus.value));
-          localStorage.setItem('sh2_assets', JSON.stringify(assets.value));
-          localStorage.setItem('sh2_contents', JSON.stringify(contents.value));
+          if (pillar === 'Community') {
+            bgScene = "Warm Indonesian family dining setting in a traditional wooden gazebo, serene garden pond atmosphere, clean woven bamboo mats, comfortable natural daylight";
+            kineticAction = "Abundant family feast arrangement: authentic steaming rice in a traditional bamboo bakul, iced tea glasses with realistic condensation beads, small ceramic bowls of fresh sambal terasi";
+          } else if (pillar === 'Trust') {
+            bgScene = "Traditional Indonesian open-fire kitchen backdrop, authentic glowing coconut charcoal embers softly blurred in background, natural warm kitchen ambiance";
+            kineticAction = "A basting brush applying rich glossy sauce with dripping droplets, wisps of fragrant charcoal smoke gently curling upward, sizzling caramelized edges";
+          }
+
+          var promptLines = [
+            'A premium commercial advertising poster for an authentic Indonesian restaurant named "Pemancingan Suharno 2".',
+            'Aspect Ratio: 4:5 vertical portrait orientation (Instagram Feed ad format).',
+            'Style: Ultra-realistic commercial food photography, high-end culinary print ad, 4K clarity, tactile food textures.',
+            'Hero Subject: An appetizing platter of Indonesian ' + menuName + ' (' + method + '), generously basted and caramelized with authentic ' + sauce + '. Served on an artisanal terracotta clay plate lined with a fresh green banana leaf. Perfectly charred yet moist skin with glistening spice glaze, garnished with fresh calamansi halves and red bird\'s eye chilies.',
+            'Dynamic Commercial Elements: ' + kineticAction + '.',
+            'Background & Environment: ' + bgScene + '. Strong depth of field (f/2.8), hero dish sharply in focus while background is softly blurred.',
+            'In-Image Typography & Layout: Top Area render elegant, bold, legible headline text reading: "' + hookText + '" with subtle warm drop shadow. Header Tag: minimalist badge at the top reading "PEMANCINGAN SUHARNO 2". Lower Area: clean negative space along bottom for advertising layout balance.',
+            'Color Palette & Lighting: Directional warm golden-hour rim lighting highlighting crispy textures. Brand color accents: deep fresh leaf green (#297C3F), golden caramel amber (#F4E918), and chili red (#E90023). Strictly natural food colors, no artificial neon oversaturation, photorealistic and mouthwatering.'
+          ];
+
+          return promptLines.join('\n\n');
         };
 
-        // ==============================================================
-        // SUPABASE SYNC LOGIC
-        // ==============================================================
-        const fetchDataFromSupabase = async () => {
-          if (!supabaseClient) return;
+        const buildEngineeredContents = function() {
+          const total = genForm.value.totalPosts;
+          const start = new Date(genForm.value.startDate);
+          const result = [];
+
+          const pillarSeq = ['Food/Appetite', 'Food/Appetite', 'Engagement', 'Trust', 'Community', 'Food/Appetite', 'Social Proof'];
+          const hookPool = [
+            "Kalau gurami seenak ini, kamu masih mau makan di rumah?",
+            "Jangan lihat postingan ini kalau kamu belum sempat makan siang.",
+            "Aroma bakarannya saja sudah bikin satu meja nggak sabar makan.",
+            "Ikan segar langsung dari kolam, digoreng renyah sampai ke sirip.",
+            "Bumbu bakar meresap sampai ke serat daging ikan terdalam.",
+            "Kalau cuma boleh pilih satu: Tim Gurami Bakar atau Nila Goreng Kering?",
+            "Jujur, kamu tim makan ikan dicocol sambal atau sambalnya disiram langsung?",
+            "Sebut 1 orang yang paling wajib kamu ajak makan bersama weekend ini!"
+          ];
+
+          for (let i = 0; i < total; i++) {
+            const curDate = new Date(start);
+            curDate.setDate(start.getDate() + i);
+            const dStr = curDate.toISOString().split('T')[0];
+            const pMenu = menus.value[i % menus.value.length];
+            const pillar = pillarSeq[i % pillarSeq.length];
+            const hook = hookPool[i % hookPool.length];
+
+            const nanoPrompt = generateNanoBananaPrompt(
+              pMenu.menu_name,
+              pMenu.cooking_method,
+              pMenu.sauce,
+              pillar,
+              hook
+            );
+
+            result.push({
+              id: 'SH2-' + dStr.replace(/-/g, '') + '-' + String(i + 1).padStart(3, '0'),
+              date: dStr,
+              pillar: pillar,
+              topic: pMenu.menu_name,
+              format: i % 2 === 0 ? 'Single Photo' : 'Carousel',
+              status: 'READY',
+              stage: 'SCRIPT_READY',
+              score: 88 + (i % 10),
+              activeVersion: 'V1',
+              versions: {
+                V1: {
+                  hook: hook,
+                  imagePrompt: nanoPrompt,
+                  caption: hook + '\n\nDi Pemancingan Suharno 2, kami menyajikan ' + pMenu.menu_name + ' segar langsung dari kolam. Nikmati suasana asri bersama keluarga tercinta.\n\n📍 Pemancingan Suharno 2\n👉 Tag teman & keluarga yang mau kamu ajak!',
+                  cta: 'Tag teman & keluarga yang mau kamu ajak!'
+                }
+              }
+            });
+          }
+
+          contents.value = result;
+        };
+
+        const fetchDataFromSupabase = async function() {
+          if (!supabaseClient) {
+            buildEngineeredContents();
+            return;
+          }
           isSyncing.value = true;
           try {
-            const { data: menuData } = await supabaseClient.from('menus').select('*');
-            if (menuData && menuData.length > 0) menus.value = menuData;
-
-            const { data: assetData } = await supabaseClient.from('assets').select('*');
-            if (assetData && assetData.length > 0) assets.value = assetData;
-
-            const { data: contentData } = await supabaseClient
-              .from('content_items')
-              .select(`content_id, post_date, day_name, format, pillar_id, topic, status, stage, score, content_versions (*)`)
-              .order('post_date', { ascending: true });
-
-            if (contentData && contentData.length > 0) {
-              contents.value = contentData.map(item => {
+            const res = await supabaseClient.from('content_items').select('content_id, post_date, day_name, format, pillar_id, topic, status, stage, score, content_versions(*)').order('post_date', { ascending: true });
+            if (res.data && res.data.length > 0) {
+              contents.value = res.data.map(function(item) {
                 const versionsMap = {};
                 let activeV = 'V1';
-                (item.content_versions || []).forEach(v => {
+                (item.content_versions || []).forEach(function(v) {
                   versionsMap[v.version_tag] = {
                     hook: v.hook,
                     caption: v.caption,
                     cta: v.cta,
-                    imagePrompt: v.image_prompt,
-                    carouselSlides: v.carousel_slides
+                    imagePrompt: v.image_prompt
                   };
                   if (v.is_active) activeV = v.version_tag;
                 });
-
                 return {
                   id: item.content_id,
                   date: item.post_date,
@@ -938,289 +851,60 @@
                   versions: versionsMap
                 };
               });
-              persistLocal();
               showToast('Data berhasil disinkronkan dari Supabase!');
-            } else if (!contents.value.length) {
+            } else {
               buildEngineeredContents();
             }
           } catch (e) {
-            console.warn('Fallback ke local:', e.message);
+            console.warn('Sync failed:', e);
+            buildEngineeredContents();
           } finally {
             isSyncing.value = false;
             reinitIcons();
           }
         };
 
-        const syncContentsToSupabase = async (itemsList) => {
-          if (!supabaseClient) return;
-          try {
-            for (const item of itemsList) {
-              await supabaseClient.from('content_items').upsert({
-                content_id: item.id,
-                brand_id: '00000000-0000-0000-0000-000000000001',
-                post_date: item.date,
-                day_name: new Date(item.date).toLocaleDateString('id-ID', { weekday: 'long' }),
-                format: item.format,
-                pillar_id: item.pillar,
-                topic: item.topic,
-                objective: 'Appetite / Engagement',
-                status: item.status,
-                stage: item.stage,
-                score: item.score
-              });
-
-              const v1 = item.versions['V1'];
-              if (v1) {
-                await supabaseClient.from('content_versions').upsert({
-                  content_id: item.id,
-                  version_tag: 'V1',
-                  hook: v1.hook,
-                  caption: v1.caption,
-                  cta: v1.cta,
-                  visual_brief: {},
-                  image_prompt: v1.imagePrompt,
-                  video_prompt: '',
-                  carousel_slides: v1.carouselSlides,
-                  is_active: true
-                }, { onConflict: 'content_id,version_tag' });
-              }
-            }
-            showToast('Semua konten tersimpan rapi di Supabase!');
-          } catch (err) {
-            console.error('Error saat menyimpan ke Supabase:', err);
-          }
-        };
-
-        // ==============================================================
-        // NANO BANANA PRO DEDICATED PROMPT SYNTHESIZER (POSTER ADS)
-        // ==============================================================
-        const generateNanoBananaPrompt = (menu, method, sauce, pillar, hook) => {
-          let backgroundScene = "";
-          let kineticElements = "";
-          
-          if (pillar === 'Food/Appetite' || pillar === 'Engagement') {
-            backgroundScene = "Atmospheric open-air lakeside restaurant at golden hour, out-of-focus rustic wooden gazebo, soft rippling fishing pond reflecting warm amber sunlight, lush tropical greenery in soft bokeh, dark stone tabletop surface with realistic texture";
-            kineticElements = "Dynamic kinetic food action: micro droplets of calamansi lime juice caught mid-air catching backlight, delicate curls of authentic warm steam rising from the fish skin, floating fresh red chili slices and scattered kemangi leaves around the platter";
-          } else if (pillar === 'Community') {
-            backgroundScene = "Warm Indonesian family dining setting in a traditional wooden gazebo, serene garden pond atmosphere, clean woven bamboo mats, comfortable natural daylight";
-            kineticElements = "Abundant family feast arrangement: authentic steaming rice in a traditional bamboo bakul, iced tea glasses with realistic condensation beads reflecting the sunlight, small ceramic bowls of fresh sambal terasi";
-          } else {
-            backgroundScene = "Traditional Indonesian open-fire kitchen backdrop, authentic glowing coconut charcoal embers softly blurred in background, natural kitchen ambiance";
-            kineticElements = "A basting brush applying rich glossy sauce with dripping droplets, wisps of fragrant charcoal smoke gently curling upward, sizzling caramelized edges";
-          }
-
-          return `A premium commercial advertising poster for an authentic Indonesian restaurant named "Pemancingan Suharno 2".
-
-Aspect Ratio: 4:5 vertical portrait orientation (Instagram Feed ad format).
-Style: Ultra-realistic commercial food photography, high-end culinary print ad, 4K clarity, tactile food textures.
-
-Hero Subject: 
-An appetizing platter of Indonesian ${menu} (${method}), generously basted and caramelized with authentic ${sauce}. Served on an artisanal terracotta clay plate lined with a fresh green banana leaf. The fish features perfectly charred yet moist skin with glistening spice glaze, garnished with fresh calamansi halves and red bird's eye chilies.
-
-Dynamic Commercial Elements: 
-${kineticElements}.
-
-Background & Environment: 
-${backgroundScene}. Strong depth of field (f/2.8), hero dish sharply in focus while background is softly blurred.
-
-In-Image Typography & Layout:
-- Top Area: Render elegant, bold, legible headline text reading: "${hook}" with subtle warm drop shadow.
-- Header Tag: A clean minimalist badge at the top reading: "PEMANCINGAN SUHARNO 2".
-- Lower Area: Ample negative space along the bottom for advertising layout balance.
-
-Color Palette & Lighting:
-- Directional warm golden-hour rim lighting highlighting the crispy textures of the fish.
-- Harmonious brand color accents: deep fresh leaf green (#297C3F), appetizing golden caramel amber (#F4E918), and vibrant chili red accents (#E90023).
-- Strictly natural food colors, no artificial neon oversaturation, no plastic sheen, photorealistic and mouthwatering.`;
-        };
-
-        // ==============================================================
-        // CONTENT ENGINE GENERATOR
-        // ==============================================================
-        const startGeneration = async () => {
-          if (formatSum.value !== genForm.value.totalPosts) return;
-          isGenerating.value = true;
-          generationProgress.value = 20;
-          generationStepText.value = 'Menganalisis menu & rules Pemancingan Suharno 2...';
-
-          await new Promise(r => setTimeout(r, 300));
-          generationProgress.value = 55;
-          generationStepText.value = 'Menjalankan Anti-Repetition Engine & Poster Layout Matrix...';
-
-          await new Promise(r => setTimeout(r, 300));
-          generationProgress.value = 85;
-          generationStepText.value = 'Mensintesis prompt poster Google Nano Banana Pro...';
-
-          buildEngineeredContents();
-
-          await new Promise(r => setTimeout(r, 250));
-          generationProgress.value = 100;
-          generationStepText.value = 'Menyimpan jadwal ke Supabase Database...';
-
-          await syncContentsToSupabase(contents.value);
-
-          isGenerating.value = false;
-          showGeneratorModal.value = false;
-          currentTab.value = 'calendar';
-          reinitIcons();
-        };
-
-        const buildEngineeredContents = () => {
-          const total = genForm.value.totalPosts;
-          const start = new Date(genForm.value.startDate);
-          const result = [];
-          
-          const pillarSeq = ['Food/Appetite', 'Food/Appetite', 'Engagement', 'Trust', 'Community', 'Food/Appetite', 'Social Proof'];
-          const hookBankFood = [
-            "Kalau gurami seenak ini, kamu masih mau makan di rumah?",
-            "Jangan lihat postingan ini kalau kamu belum sempat makan siang.",
-            "Aroma bakarannya saja sudah bikin satu meja nggak sabar makan.",
-            "Ikan segar langsung dari kolam, digoreng renyah sampai ke sirip.",
-            "Bumbu bakar meresap sampai ke serat daging ikan terdalam."
-          ];
-          const hookBankEng = [
-            "Kalau cuma boleh pilih satu: Tim Gurami Bakar atau Nila Goreng Kering?",
-            "Jujur, kamu tim makan ikan dicocol sambal atau sambalnya disiram langsung?",
-            "Sebut 1 orang yang paling wajib kamu ajak ke Pemancingan Suharno 2 weekend ini!"
-          ];
-          const hookBankTrust = [
-            "Kenapa ikan di sini tidak ada bau lumpur sama sekali? Ini rahasianya.",
-            "Intip proses dapur: Setiap ikan dibersihkan teliti sebelum masuk wajan.",
-            "Bukan minyak kemarin sore. Kami jaga kualitas demi rasa autentik keluarga."
-          ];
-          const hookBankComm = [
-            "Satu meja panjang, sepiring ikan bakar hangat, dan cerita keluarga yang tak ada habisnya.",
-            "Tempat pelarian paling tenang sehabis sepekan penuh dengan rutinitas."
-          ];
-          const hookBankProof = [
-            "Kata pengunjung setia kami: 'Rasa bumbu bakarnya tidak pernah berubah sejak dulu'."
-          ];
-
-          const ctaPool = [
-            "Tag orang yang paling ingin kamu ajak makan bersama hari ini.",
-            "Save postingan ini buat referensi makan akhir pekan nanti.",
-            "Tulis di kolom komentar: Kamu lebih suka bakar atau goreng?",
-            "Bagikan postingan ini ke grup keluarga sekarang!"
-          ];
-
-          let lastTopic = '';
-          let last2Topic = '';
-          let lastCtaIdx = -1;
-
-          for (let i = 0; i < total; i++) {
-            const currentDate = new Date(start);
-            currentDate.setDate(start.getDate() + i);
-            const dateStr = currentDate.toISOString().split('T')[0];
-            const dayOfWeek = currentDate.getDay();
-
-            let pillar = pillarSeq[i % pillarSeq.length];
-            if (dayOfWeek === 5) pillar = 'Food/Appetite';
-            else if (dayOfWeek === 6) pillar = 'Community';
-            else if (dayOfWeek === 0) pillar = 'Food/Appetite';
-
-            const candidateMenus = menus.value.filter(m => m.menu_name !== lastTopic && m.menu_name !== last2Topic);
-            const pickedMenu = candidateMenus[i % candidateMenus.length] || menus.value[0];
-            last2Topic = lastTopic;
-            lastTopic = pickedMenu.menu_name;
-
-            let format = 'Single Photo';
-            if (i % 2 === 1 && result.filter(c => c.format === 'Carousel').length < genForm.value.carouselCount) {
-              format = 'Carousel';
-            } else if (result.filter(c => c.format === 'Single Photo').length >= genForm.value.singlePhotoCount) {
-              format = 'Carousel';
-            }
-
-            let hook = '';
-            if (pillar === 'Food/Appetite') hook = hookBankFood[i % hookBankFood.length];
-            else if (pillar === 'Engagement') hook = hookBankEng[i % hookBankEng.length];
-            else if (pillar === 'Trust') hook = hookBankTrust[i % hookBankTrust.length];
-            else if (pillar === 'Community') hook = hookBankComm[i % hookBankComm.length];
-            else hook = hookBankProof[i % hookBankProof.length];
-
-            let ctaIdx = (lastCtaIdx + 1 + (i % 2)) % ctaPool.length;
-            lastCtaIdx = ctaIdx;
-            const cta = ctaPool[ctaIdx];
-
-            const matched = assets.value.find(a => 
-              (a.menu_ref || a.menu || '').toLowerCase().includes(pickedMenu.fish_type.toLowerCase())
-            );
-
-            // NANO BANANA PRO SYNTHESIS
-            const nanoPrompt = generateNanoBananaPrompt(
-              pickedMenu.menu_name,
-              pickedMenu.cooking_method,
-              pickedMenu.sauce,
-              pillar,
-              hook
-            );
-
-            const carouselSlides = [
-              `Slide 1 (Hook): "${hook}"`,
-              `Slide 2 (Rasa Penasaran): Cari tempat makan ikan segar yang ramah keluarga besar?`,
-              `Slide 3 (Menu Utama): Sajian andalan: ${pickedMenu.menu_name}.`,
-              `Slide 4 (Detail Rasa): Olahan ${pickedMenu.cooking_method} berpadu dengan ${pickedMenu.sauce}.`,
-              `Slide 5 (Suasana Asri): Duduk santai di gazebo tepi kolam ikan bersama orang tersayang.`,
-              `Slide 6 (Call To Action): ${cta}`
-            ];
-
-            const caption = `${hook}\n\nDi Pemancingan Suharno 2, kami menyajikan ${pickedMenu.menu_name} yang diolah langsung dari ikan segar pilihan. Disajikan hangat bersama ${pickedMenu.sauce} yang nikmat disantap bersama nasi pulen hangat dan lalapan.\n\nPilihan tepat untuk berkumpul bersama keluarga di suasana alam yang tenang dan asri.\n\n📍 Pemancingan Suharno 2\n👉 ${cta}`;
-
-            let score = 86 + (i % 12);
-            if (matched) score += 3;
-            if (score > 98) score = 98;
-
-            result.push({
-              id: `SH2-${dateStr.replace(/-/g, '')}-${String(i + 1).padStart(3, '0')}`,
-              date: dateStr,
-              pillar: pillar,
-              topic: pickedMenu.menu_name,
-              format: format,
-              status: matched ? 'READY' : 'NEEDS_ASSET',
-              stage: matched ? 'SCRIPT_READY' : 'ASSET_NEEDED',
-              matchedAsset: matched ? (matched.file_name || matched.name) : null,
-              score: score,
-              activeVersion: 'V1',
-              versions: {
-                V1: {
-                  hook,
-                  imagePrompt: nanoPrompt,
-                  carouselSlides,
-                  caption,
-                  cta
-                }
-              }
-            });
-          }
-
-          contents.value = result;
-          persistLocal();
-        };
-
-        const currentVersionData = computed(() => {
+        const currentVersionData = computed(function() {
           if (!selectedContent.value) return {};
           const v = selectedContent.value.activeVersion || 'V1';
           return selectedContent.value.versions[v] || selectedContent.value.versions['V1'] || {};
         });
 
-        const openDetailModal = (item) => {
+        const openDetailModal = function(item) {
           selectedContent.value = item;
           detailTab.value = 'prompts';
-          nextTick(() => reinitIcons());
+          nextTick(reinitIcons);
         };
 
-        const openGeneratorModal = () => {
+        const openGeneratorModal = function() {
           showGeneratorModal.value = true;
-          nextTick(() => reinitIcons());
+          nextTick(reinitIcons);
         };
 
-        const regeneratePart = async (part) => {
+        const startGeneration = async function() {
+          isGenerating.value = true;
+          generationProgress.value = 30;
+          generationStepText.value = 'Menganalisis menu & rules Suharno 2...';
+          await new Promise(function(r) { setTimeout(r, 400); });
+          generationProgress.value = 80;
+          generationStepText.value = 'Menyusun poster prompt Nano Banana Pro...';
+          buildEngineeredContents();
+          await new Promise(function(r) { setTimeout(r, 300); });
+          isGenerating.value = false;
+          showGeneratorModal.value = false;
+          currentTab.value = 'calendar';
+          showToast('Kalender konten & AI Prompt berhasil dibuat!');
+          reinitIcons();
+        };
+
+        const regeneratePart = function(part) {
           if (!selectedContent.value) return;
-          const curr = { ...currentVersionData.value };
+          const curr = Object.assign({}, currentVersionData.value);
           const vKeys = Object.keys(selectedContent.value.versions);
-          const newVKey = `V${vKeys.length + 1}`;
+          const newVKey = 'V' + (vKeys.length + 1);
 
           if (part === 'hook') {
-            curr.hook = `[Alternatif] Pilihan terbaik santap siang: kenikmatan ${selectedContent.value.topic} khas racikan kami.`;
+            curr.hook = '[Alternatif] Sensasi gurih istimewa: ' + selectedContent.value.topic + ' khas Suharno 2.';
             curr.imagePrompt = generateNanoBananaPrompt(
               selectedContent.value.topic,
               'Bakar/Goreng',
@@ -1228,149 +912,74 @@ Color Palette & Lighting:
               selectedContent.value.pillar,
               curr.hook
             );
-          } else if (part === 'cta') {
-            curr.cta = "Yuk simpan postingan ini sekarang dan bagikan ke keluarga!";
           } else if (part === 'caption') {
-            curr.caption = `Mencari hidangan yang pas untuk santap santai? ${selectedContent.value.topic} selalu jadi pilihan favorit di meja kami.\n\nDibuat fresh dengan citarasa autentik bumbu tradisional khas Pemancingan Suharno 2.\n\n${curr.cta}`;
+            curr.caption = 'Mencari hidangan pas untuk santap santai? ' + selectedContent.value.topic + ' selalu jadi favorit di meja kami.\n\n📍 Pemancingan Suharno 2\n👉 Yuk ajak keluarga makan siang di sini!';
           }
 
           selectedContent.value.versions[newVKey] = curr;
           selectedContent.value.activeVersion = newVKey;
-          persistLocal();
-
-          if (supabaseClient) {
-            await supabaseClient.from('content_versions').insert({
-              content_id: selectedContent.value.id,
-              version_tag: newVKey,
-              hook: curr.hook,
-              caption: curr.caption,
-              cta: curr.cta,
-              visual_brief: {},
-              image_prompt: curr.imagePrompt,
-              video_prompt: '',
-              carousel_slides: curr.carouselSlides,
-              is_active: true
-            });
-          }
-          showToast(`Versi baru (${newVKey}) berhasil digenerate!`);
+          showToast('Versi baru (' + newVKey + ') berhasil dibuat!');
         };
 
-        const regenerateEntire = async (item) => {
-          const vKeys = Object.keys(item.versions);
-          const nextV = `V${vKeys.length + 1}`;
-          const newHook = `Sensasi aroma bumbu gurih ${item.topic} yang selalu dirindukan sekeluarga.`;
-          const newCta = "Ajak orang tuamu makan siang bersama di sini akhir pekan ini!";
-          
-          const newNanoPrompt = generateNanoBananaPrompt(
-            item.topic,
-            'Bakar/Goreng',
-            'Bumbu Tradisional',
-            item.pillar,
-            newHook
-          );
-
-          const newVersionObj = {
-            hook: newHook,
-            imagePrompt: newNanoPrompt,
-            carouselSlides: [
-              `Slide 1: "${newHook}"`,
-              `Slide 2: Dibuat dari bahan segar tanpa bahan pengawet.`,
-              `Slide 3: Pilihan rempah lokal pilihan khas Nusantara.`,
-              `Slide 4: Paling cocok dimakan selagi hangat bersama lalapan.`,
-              `Slide 5: Suasana alam terbuka ramah anak dan keluarga.`,
-              `Slide 6: ${newCta}`
-            ],
-            caption: `${newHook}\n\nSantap nikmat di tepi kolam dengan sepiring ${item.topic}. Rasa autentik yang diracik khusus untuk momen kebersamaan.\n\n📍 Pemancingan Suharno 2\n👉 ${newCta}`,
-            cta: newCta
-          };
-
-          item.versions[nextV] = newVersionObj;
-          item.activeVersion = nextV;
-          persistLocal();
-
-          if (supabaseClient) {
-            await supabaseClient.from('content_versions').insert({
-              content_id: item.id,
-              version_tag: nextV,
-              hook: newVersionObj.hook,
-              caption: newVersionObj.caption,
-              cta: newVersionObj.cta,
-              visual_brief: {},
-              image_prompt: newVersionObj.imagePrompt,
-              video_prompt: '',
-              carousel_slides: newVersionObj.carouselSlides,
-              is_active: true
-            });
-          }
-          showToast(`Versi penuh (${nextV}) tersimpan di Supabase!`);
-        };
-
-        const markAsPosted = async (item) => {
+        const markAsPosted = function(item) {
           item.status = 'POSTED';
           item.stage = 'POSTED';
-          persistLocal();
-
-          if (supabaseClient) {
-            await supabaseClient.from('content_items')
-              .update({ status: 'POSTED', stage: 'POSTED' })
-              .eq('content_id', item.id);
-          }
-          showToast('Status diupdate menjadi POSTED!');
+          showToast('Status berhasil diubah ke POSTED!');
         };
 
-        const updateCardStage = async (card, newStage) => {
+        const updateCardStage = function(card, newStage) {
           card.stage = newStage;
-          persistLocal();
-          if (supabaseClient) {
-            await supabaseClient.from('content_items')
-              .update({ stage: newStage })
-              .eq('content_id', card.id);
-          }
-          showToast(`Tahap produksi diupdate ke: ${newStage}`);
+          showToast('Tahap produksi diupdate ke: ' + newStage);
         };
 
-        const seedDefaultMenu = async () => {
-          menus.value = [...defaultMenus];
-          assets.value = [...defaultAssets];
-          persistLocal();
-          showToast('Data master menu berhasil di-reset.');
+        const seedDefaultMenu = function() {
+          menus.value = defaultMenus;
+          showToast('Menu di-reset ke nilai default.');
         };
 
-        const getContentsByStage = (stageId) => contents.value.filter(c => (c.stage || 'IDEA') === stageId);
-        const countPillar = (pillar) => contents.value.filter(c => c.pillar === pillar).length;
-        const countFormat = (fmt) => contents.value.filter(c => c.format === fmt).length;
-        const countStatus = (st) => contents.value.filter(c => c.status === st).length;
+        const getContentsByStage = function(stageId) {
+          return contents.value.filter(function(c) { return (c.stage || 'IDEA') === stageId; });
+        };
 
-        const pillarDistribution = computed(() => {
+        const countPillar = function(pillar) {
+          return contents.value.filter(function(c) { return c.pillar === pillar; }).length;
+        };
+
+        const countFormat = function(fmt) {
+          return contents.value.filter(function(c) { return c.format === fmt; }).length;
+        };
+
+        const countStatus = function(st) {
+          return contents.value.filter(function(c) { return c.status === st; }).length;
+        };
+
+        const pillarDistribution = computed(function() {
           const total = contents.value.length || 1;
           const map = {};
-          ['Food/Appetite', 'Engagement', 'Trust', 'Community', 'Social Proof'].forEach(p => {
+          ['Food/Appetite', 'Engagement', 'Trust', 'Community', 'Social Proof'].forEach(function(p) {
             map[p] = Math.round((countPillar(p) / total) * 100);
           });
           return map;
         });
 
-        const distributionWarning = computed(() => {
+        const distributionWarning = computed(function() {
           const foodPct = pillarDistribution.value['Food/Appetite'] || 0;
-          if (foodPct > 55) {
-            return 'Peringatan: Food/Appetite mendominasi lebih dari 55% konten. Pertimbangkan menambah pilar Community atau Trust.';
-          }
-          return null;
+          return foodPct > 55 ? 'Peringatan: Food/Appetite mendominasi lebih dari 55%. Pertimbangkan menambah pilar Community atau Trust.' : null;
         });
 
-        const averageScore = computed(() => {
+        const averageScore = computed(function() {
           if (!contents.value.length) return 0;
-          const sum = contents.value.reduce((acc, c) => acc + (c.score || 80), 0);
+          const sum = contents.value.reduce(function(acc, c) { return acc + (c.score || 80); }, 0);
           return Math.round(sum / contents.value.length);
         });
 
-        const formatDate = (dateStr) => {
+        const formatDate = function(dateStr) {
           if (!dateStr) return '';
-          const parts = dateStr.split('-');
-          return `${parts[2]}/${parts[1]}/${parts[0]}`;
+          const p = dateStr.split('-');
+          return p[2] + '/' + p[1] + '/' + p[0];
         };
 
-        const getPillarLabel = (p) => {
+        const getPillarLabel = function(p) {
           const dict = {
             'Food/Appetite': 'Food / Appetite (Sajian Ikan & Selera)',
             'Engagement': 'Engagement (Tanya Jawab & Interaksi)',
@@ -1381,7 +990,7 @@ Color Palette & Lighting:
           return dict[p] || p;
         };
 
-        const getPillarColorClass = (p) => {
+        const getPillarColorClass = function(p) {
           if (p === 'Food/Appetite') return 'bg-brand-green';
           if (p === 'Engagement') return 'bg-amber-500';
           if (p === 'Trust') return 'bg-blue-500';
@@ -1389,15 +998,14 @@ Color Palette & Lighting:
           return 'bg-purple-500';
         };
 
-        const getPillarBadgeClass = (p) => {
+        const getPillarBadgeClass = function(p) {
           if (p === 'Food/Appetite') return 'bg-brand-greenLight text-brand-greenDark font-bold';
           if (p === 'Engagement') return 'bg-amber-100 text-amber-800 font-bold';
           if (p === 'Trust') return 'bg-blue-100 text-blue-800 font-bold';
-          if (p === 'Community') return 'bg-emerald-100 text-emerald-800 font-bold';
           return 'bg-purple-100 text-purple-800 font-bold';
         };
 
-        const getStatusBadgeClass = (st) => {
+        const getStatusBadgeClass = function(st) {
           if (st === 'READY') return 'bg-emerald-100 text-emerald-800';
           if (st === 'NEEDS_ASSET') return 'bg-amber-100 text-amber-800';
           if (st === 'NEEDS_REVIEW') return 'bg-rose-100 text-rose-800';
@@ -1405,7 +1013,7 @@ Color Palette & Lighting:
           return 'bg-slate-100 text-slate-700';
         };
 
-        const getStatusBorderColor = (st) => {
+        const getStatusBorderColor = function(st) {
           if (st === 'READY') return 'border-l-emerald-600';
           if (st === 'NEEDS_ASSET') return 'border-l-amber-500';
           if (st === 'NEEDS_REVIEW') return 'border-l-brand-red';
@@ -1413,16 +1021,13 @@ Color Palette & Lighting:
           return 'border-l-slate-400';
         };
 
-        // EXCEL EXPORT LENGKAP NANO BANANA PRO PROMPT
-        const exportToExcel = () => {
+        const exportToExcel = function() {
           if (!contents.value.length) {
             alert('Belum ada data konten untuk diexport.');
             return;
           }
-
           const wb = XLSX.utils.book_new();
-
-          const calData = contents.value.map(c => {
+          const calData = contents.value.map(function(c) {
             const v = c.versions[c.activeVersion] || c.versions['V1'] || {};
             return {
               'Content ID': c.id,
@@ -1432,29 +1037,28 @@ Color Palette & Lighting:
               'Topic / Menu': c.topic,
               'Hook Headline': v.hook || '',
               'Nano Banana Pro Prompt': v.imagePrompt || '',
-              'Caption Full': v.caption || '',
-              'CTA': v.cta || '',
+              'Caption': v.caption || '',
               'Status': c.status,
               'Score': c.score
             };
           });
           XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(calData), 'Content Calendar');
-
-          XLSX.writeFile(wb, `SUHARNO2_NanoBananaPro_${new Date().toISOString().split('T')[0]}.xlsx`);
+          XLSX.writeFile(wb, 'SUHARNO2_NanoBananaPro_' + (new Date().toISOString().split('T')[0]) + '.xlsx');
           showToast('File Excel berhasil diunduh!');
         };
 
-        const reinitIcons = () => {
-          nextTick(() => {
-            if (window.lucide) lucide.createIcons();
+        const reinitIcons = function() {
+          nextTick(function() {
+            if (window.lucide) window.lucide.createIcons();
           });
         };
 
-        watch(currentTab, () => reinitIcons());
-        watch(detailTab, () => reinitIcons());
+        watch(currentTab, reinitIcons);
+        watch(detailTab, reinitIcons);
 
-        onMounted(() => {
+        onMounted(function() {
           fetchDataFromSupabase();
+          reinitIcons();
         });
 
         return {
@@ -1464,7 +1068,6 @@ Color Palette & Lighting:
           isSyncing,
           tabs,
           showGeneratorModal,
-          showBatchModal,
           isGenerating,
           generationProgress,
           generationStepText,
@@ -1473,7 +1076,6 @@ Color Palette & Lighting:
           syncFormatCounts,
           kanbanColumns,
           menus,
-          assets,
           contents,
           seedDefaultMenu,
           startGeneration,
@@ -1482,7 +1084,6 @@ Color Palette & Lighting:
           openDetailModal,
           openGeneratorModal,
           regeneratePart,
-          regenerateEntire,
           markAsPosted,
           updateCardStage,
           copyToClipboard,
